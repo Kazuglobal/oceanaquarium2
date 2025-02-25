@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings } from 'lucide-react';
+import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash } from 'lucide-react';
 
 interface Fish {
   x: number;
@@ -89,6 +89,7 @@ interface PollutionSource {
 
 // クイズの質問と回答のインターフェース
 interface QuizQuestion {
+  category: 'pollution' | 'ecosystem' | 'all';
   question: string;
   options: string[];
   correctAnswer: number;
@@ -151,10 +152,14 @@ function App() {
     boat: null,
     trash: null
   });
+  const [quizCategory, setQuizCategory] = useState<'pollution' | 'ecosystem' | 'all'>('all');
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   // クイズの質問リスト
-  const quizQuestions: QuizQuestion[] = [
+  const allQuizQuestions: QuizQuestion[] = [
+    // 汚染に関する質問
     {
+      category: 'pollution',
       question: "海洋汚染の主な原因は何ですか？",
       options: [
         "宇宙からの隕石",
@@ -166,6 +171,7 @@ function App() {
       explanation: "海洋汚染の約80%は陸地からの人間活動によるものです。プラスチックごみ、化学物質、農業からの流出物などが主な原因です。"
     },
     {
+      category: 'pollution',
       question: "プラスチックが海で完全に分解されるのにかかる時間はどれくらいですか？",
       options: [
         "約1年",
@@ -177,17 +183,19 @@ function App() {
       explanation: "多くのプラスチック製品は海で完全に分解されるのに450年以上かかります。その間、小さな破片になって海洋生物に害を与え続けます。"
     },
     {
+      category: 'pollution',
       question: "海の生物にとって最も危険な汚染物質は何ですか？",
       options: [
         "プラスチック",
         "油",
-        "農薩",
+        "農薬",
         "すべて危険"
       ],
       correctAnswer: 3,
-      explanation: "これらすべての汚染物質は海洋生物に深刻な害を与えます。プラスチックは窒息や消化器官の詰まりを、油は呼吸困難や体温調節の問題を、農薩は神経系や生殖系の障害を引き起こします。"
+      explanation: "これらすべての汚染物質は海洋生物に深刻な害を与えます。プラスチックは窒息や消化器官の詰まりを、油は呼吸困難や体温調節の問題を、農薬は神経系や生殖系の障害を引き起こします。"
     },
     {
+      category: 'pollution',
       question: "海は地球の酸素をどれくらい生成していますか？",
       options: [
         "約10%",
@@ -199,6 +207,7 @@ function App() {
       explanation: "海の植物プランクトンと海藻は、地球の酸素の50%以上を生成しています。これは森林よりも多い量です。"
     },
     {
+      category: 'pollution',
       question: "子どもが海洋環境を守るためにできることは何ですか？",
       options: [
         "プラスチックの使用を減らす",
@@ -208,8 +217,75 @@ function App() {
       ],
       correctAnswer: 3,
       explanation: "これらすべての行動が海洋環境を守るのに役立ちます。小さな行動の積み重ねが大きな変化をもたらします。"
+    },
+    
+    // 魚の生態系に関する質問
+    {
+      category: 'ecosystem',
+      question: "魚の群れ（スクーリング）が形成される主な理由は何ですか？",
+      options: [
+        "水温調節のため",
+        "捕食者からの保護と餌の効率的な探索のため",
+        "繁殖のためだけ",
+        "水流に逆らって泳ぐため"
+      ],
+      correctAnswer: 1,
+      explanation: "魚は主に捕食者からの保護と餌の効率的な探索のために群れを形成します。群れの中にいると、捕食者に見つかりにくく、また多くの目で餌を見つけやすくなります。"
+    },
+    {
+      category: 'ecosystem',
+      question: "サンゴ礁が魚の生態系にとって重要な理由は何ですか？",
+      options: [
+        "単に美しいから",
+        "魚の餌になるから",
+        "多くの魚の住処、産卵場所、保護区になるから",
+        "水温を下げるから"
+      ],
+      correctAnswer: 2,
+      explanation: "サンゴ礁は海の熱帯雨林とも呼ばれ、多くの魚の住処、産卵場所、保護区となっています。世界の海洋生物の約25%がサンゴ礁に依存しています。"
+    },
+    {
+      category: 'ecosystem',
+      question: "クラゲは魚ですか？",
+      options: [
+        "はい、特殊な魚の一種です",
+        "いいえ、クラゲは刺胞動物門に属します",
+        "はい、ただし成熟した段階のみ",
+        "いいえ、クラゲは軟体動物です"
+      ],
+      correctAnswer: 1,
+      explanation: "クラゲは魚ではなく、刺胞動物門に属します。魚は脊椎動物ですが、クラゲは脊椎を持たない無脊椎動物です。"
+    },
+    {
+      category: 'ecosystem',
+      question: "海洋酸性化が魚に与える影響は何ですか？",
+      options: [
+        "影響はない",
+        "魚の骨格と貝殻の形成に問題を引き起こす",
+        "魚の色が明るくなる",
+        "魚の寿命が長くなる"
+      ],
+      correctAnswer: 1,
+      explanation: "海洋酸性化は二酸化炭素の増加によって起こり、魚の骨格形成や貝殻を持つ生物の殻の形成に深刻な問題を引き起こします。また、魚の行動や生理機能にも影響を与えます。"
+    },
+    {
+      category: 'ecosystem',
+      question: "深海魚が浅い海に上がってこられない理由は何ですか？",
+      options: [
+        "光が怖いから",
+        "水温が高すぎるから",
+        "水圧の変化に適応できないから",
+        "餌がないから"
+      ],
+      correctAnswer: 2,
+      explanation: "深海魚は高水圧環境に適応しており、急激な水圧の低下に対応できません。浅い海に上がると体内のガスが膨張し、組織が損傷する可能性があります。"
     }
   ];
+
+  // 選択されたカテゴリーに基づいてクイズ質問をフィルタリング
+  const quizQuestions = quizCategory === 'all' 
+    ? allQuizQuestions 
+    : allQuizQuestions.filter(q => q.category === quizCategory);
 
   // クイズの回答を処理する関数
   const handleAnswerSubmit = (selectedIndex: number) => {
@@ -230,19 +306,40 @@ function App() {
     } else {
       // クイズ終了時の処理
       // 高得点の場合、汚染を少し減らす報酬を与える
-      if (quizScore >= 3) {
+      const passScore = Math.ceil(quizQuestions.length * 0.6); // 60%以上で合格
+      if (quizScore >= passScore) {
         setPollutionLevel(prev => Math.max(0, prev - 1));
         // 新しい魚を追加する報酬
         if (fishTypes.length > 0) {
           const randomTypeIndex = Math.floor(Math.random() * fishTypes.length);
           updateFishCount(randomTypeIndex, 1);
         }
+        setQuizCompleted(true);
       }
       // クイズをリセット
-      setCurrentQuizIndex(0);
-      setQuizScore(0);
-      setShowQuiz(false);
+      setSelectedAnswer(null);
+      setIsAnswerSubmitted(false);
     }
+  };
+
+  // クイズを閉じる関数
+  const closeQuiz = () => {
+    setCurrentQuizIndex(0);
+    setQuizScore(0);
+    setSelectedAnswer(null);
+    setIsAnswerSubmitted(false);
+    setQuizCompleted(false);
+    setShowQuiz(false);
+  };
+
+  // クイズカテゴリーを変更する関数
+  const changeQuizCategory = (category: 'pollution' | 'ecosystem' | 'all') => {
+    setQuizCategory(category);
+    setCurrentQuizIndex(0);
+    setQuizScore(0);
+    setSelectedAnswer(null);
+    setIsAnswerSubmitted(false);
+    setQuizCompleted(false);
   };
 
   const addPollution = () => {
@@ -1146,10 +1243,24 @@ function App() {
       };
     };
 
-    // 実際のプロジェクトでは適切な画像パスに置き換える
-    loadImage('https://cdn-icons-png.flaticon.com/512/1598/1598196.png', 'factory');
-    loadImage('https://cdn-icons-png.flaticon.com/512/2942/2942076.png', 'boat');
-    loadImage('https://cdn-icons-png.flaticon.com/512/3141/3141684.png', 'trash');
+    // 相対パスを使用して画像を読み込む
+    loadImage('/images/factory.png', 'factory');
+    loadImage('/images/boat.png', 'boat');
+    loadImage('/images/trash.png', 'trash');
+    
+    // フォールバックとして、CDNからの読み込みも試みる
+    setTimeout(() => {
+      // 画像が読み込めなかった場合は、CDNから読み込む
+      if (!pollutionSourceImagesRef.current.factory) {
+        loadImage('https://cdn-icons-png.flaticon.com/512/1598/1598196.png', 'factory');
+      }
+      if (!pollutionSourceImagesRef.current.boat) {
+        loadImage('https://cdn-icons-png.flaticon.com/512/2942/2942076.png', 'boat');
+      }
+      if (!pollutionSourceImagesRef.current.trash) {
+        loadImage('https://cdn-icons-png.flaticon.com/512/3141/3141684.png', 'trash');
+      }
+    }, 1000);
   }, []);
 
   // 汚染源からの汚染効果を処理
@@ -1380,7 +1491,7 @@ function App() {
                   {currentQuizIndex + 1}/{quizQuestions.length}
                 </span>
                 <button 
-                  onClick={() => setShowQuiz(false)}
+                  onClick={closeQuiz}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1390,66 +1501,153 @@ function App() {
                 </button>
               </div>
             </div>
-            
-            <div className="mb-4">
-              <p className="text-sm font-medium text-gray-800 mb-3">
-                {quizQuestions[currentQuizIndex].question}
-              </p>
-              
-              <div className="space-y-2">
-                {quizQuestions[currentQuizIndex].options.map((option, index) => (
+
+            {/* カテゴリー選択 */}
+            {!isAnswerSubmitted && currentQuizIndex === 0 && !quizCompleted && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-500 mb-2">カテゴリーを選択:</p>
+                <div className="flex gap-2">
                   <button
-                    key={index}
-                    onClick={() => !isAnswerSubmitted && handleAnswerSubmit(index)}
-                    disabled={isAnswerSubmitted}
-                    className={`w-full text-left p-2 rounded-md text-sm transition-colors ${
-                      isAnswerSubmitted
-                        ? index === quizQuestions[currentQuizIndex].correctAnswer
-                          ? 'bg-green-100 border border-green-300'
-                          : selectedAnswer === index
-                            ? 'bg-red-100 border border-red-300'
-                            : 'bg-gray-100 border border-gray-200'
-                        : selectedAnswer === index
-                          ? 'bg-purple-100 border border-purple-300'
-                          : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                    onClick={() => changeQuizCategory('all')}
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      quizCategory === 'all'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    {option}
+                    すべて
                   </button>
-                ))}
-              </div>
-            </div>
-            
-            {isAnswerSubmitted && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                <p className="text-xs text-blue-800">
-                  {quizQuestions[currentQuizIndex].explanation}
-                </p>
+                  <button
+                    onClick={() => changeQuizCategory('pollution')}
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      quizCategory === 'pollution'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    海洋汚染
+                  </button>
+                  <button
+                    onClick={() => changeQuizCategory('ecosystem')}
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      quizCategory === 'ecosystem'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    魚の生態系
+                  </button>
+                </div>
               </div>
             )}
             
-            <div className="flex justify-between items-center">
-              <div className="text-xs text-gray-500">
-                スコア: <span className="font-medium text-purple-600">{quizScore}</span>
+            {quizCompleted ? (
+              <div className="text-center py-6">
+                <div className="text-2xl font-bold text-purple-600 mb-2">
+                  クイズ完了！
+                </div>
+                <div className="text-lg mb-4">
+                  あなたのスコア: <span className="font-bold">{quizScore}/{quizQuestions.length}</span>
+                </div>
+                <div className="mb-6">
+                  {quizScore >= Math.ceil(quizQuestions.length * 0.6) ? (
+                    <div className="p-3 bg-green-50 rounded-md border border-green-100">
+                      <p className="text-sm text-green-800">
+                        おめでとうございます！高得点を獲得したため、海の汚染レベルが下がり、新しい魚が追加されました！
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-yellow-50 rounded-md border border-yellow-100">
+                      <p className="text-sm text-yellow-800">
+                        もう少し頑張りましょう！60%以上の正解で特別な報酬がもらえます。
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => {
+                      setQuizCompleted(false);
+                      setCurrentQuizIndex(0);
+                      setQuizScore(0);
+                      setSelectedAnswer(null);
+                      setIsAnswerSubmitted(false);
+                    }}
+                    className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    もう一度挑戦
+                  </button>
+                  <button
+                    onClick={closeQuiz}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    閉じる
+                  </button>
+                </div>
               </div>
-              
-              {isAnswerSubmitted && (
-                <button
-                  onClick={goToNextQuiz}
-                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
-                >
-                  {currentQuizIndex < quizQuestions.length - 1 ? '次の問題' : 'クイズ終了'}
-                </button>
-              )}
-            </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-800 mb-3">
+                    {quizQuestions[currentQuizIndex].question}
+                  </p>
+                  
+                  <div className="space-y-2">
+                    {quizQuestions[currentQuizIndex].options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => !isAnswerSubmitted && handleAnswerSubmit(index)}
+                        disabled={isAnswerSubmitted}
+                        className={`w-full text-left p-2 rounded-md text-sm transition-colors ${
+                          isAnswerSubmitted
+                            ? index === quizQuestions[currentQuizIndex].correctAnswer
+                              ? 'bg-green-100 border border-green-300'
+                              : selectedAnswer === index
+                                ? 'bg-red-100 border border-red-300'
+                                : 'bg-gray-100 border border-gray-200'
+                            : selectedAnswer === index
+                              ? 'bg-purple-100 border border-purple-300'
+                              : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {isAnswerSubmitted && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
+                    <p className="text-xs text-blue-800">
+                      {quizQuestions[currentQuizIndex].explanation}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-500">
+                    スコア: <span className="font-medium text-purple-600">{quizScore}</span>
+                  </div>
+                  
+                  {isAnswerSubmitted && (
+                    <button
+                      onClick={goToNextQuiz}
+                      className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
+                    >
+                      {currentQuizIndex < quizQuestions.length - 1 ? '次の問題' : 'クイズ終了'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* 汚染源パネル */}
         {showCausesPanel && (
-          <div className="absolute right-4 top-52 w-80 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-bold text-orange-600">汚染の原因と影響</h3>
+          <div className="absolute right-4 top-20 w-80 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-amber-600">海洋汚染と生態系</h3>
               <button 
                 onClick={() => setShowCausesPanel(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -1461,119 +1659,58 @@ function App() {
               </button>
             </div>
             
-            <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-3">
-                海洋汚染の主な原因を追加して、魚たちへの影響を観察してみましょう。
-              </p>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-600">
-                        <path d="M2 22h20M12 2v6m0 0l3.5-3.5M12 8l-3.5-3.5M17 22V6m0 0l3.5-3.5M17 6l-3.5-3.5M7 22V11m0 0l3.5-3.5M7 11l-3.5-3.5"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">工場</h4>
-                      <p className="text-xs text-gray-500">化学物質や廃水を排出</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => addPollutionSource('factory')}
-                    className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded hover:bg-orange-200 transition-colors"
-                  >
-                    追加
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                        <path d="M3 10h18M9 3v18m0-18h6v18H9"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">船</h4>
-                      <p className="text-xs text-gray-500">油や燃料の漏れ</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => addPollutionSource('boat')}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
-                  >
-                    追加
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
-                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">ゴミ</h4>
-                      <p className="text-xs text-gray-500">プラスチックや廃棄物</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => addPollutionSource('trash')}
-                    className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition-colors"
-                  >
-                    追加
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {pollutionSources.length > 0 && (
+            <div className="space-y-4 text-sm">
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">現在の汚染源:</h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {pollutionSources.map((source, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                      <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 ${
-                          source.type === 'factory' ? 'bg-orange-100' : 
-                          source.type === 'boat' ? 'bg-blue-100' : 'bg-green-100'
-                        }`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`${
-                            source.type === 'factory' ? 'text-orange-600' : 
-                            source.type === 'boat' ? 'text-blue-600' : 'text-green-600'
-                          }`}>
-                            {source.type === 'factory' ? (
-                              <path d="M2 22h20M12 2v6m0 0l3.5-3.5M12 8l-3.5-3.5M17 22V6m0 0l3.5-3.5M17 6l-3.5-3.5M7 22V11m0 0l3.5-3.5M7 11l-3.5-3.5"></path>
-                            ) : source.type === 'boat' ? (
-                              <path d="M3 10h18M9 3v18m0-18h6v18H9"></path>
-                            ) : (
-                              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path>
-                            )}
-                          </svg>
-                        </div>
-                        <span className="text-xs">
-                          {source.type === 'factory' ? '工場' : 
-                           source.type === 'boat' ? '船' : 'ゴミ'}
-                        </span>
-                      </div>
-                      <button 
-                        onClick={() => removePollutionSource(index)}
-                        className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200 transition-colors"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <h4 className="font-semibold text-amber-700 mb-1">海洋汚染の主な原因</h4>
+                <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                  <li>プラスチックごみ（ペットボトル、ビニール袋など）</li>
+                  <li>工場からの化学物質の排出</li>
+                  <li>船舶からの油漏れ</li>
+                  <li>農業からの肥料や農薬の流出</li>
+                  <li>不適切に処理された下水</li>
+                </ul>
               </div>
-            )}
-            
-            <div className="mt-4 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                汚染源を追加すると、海の汚染レベルが上がり、魚たちの健康に影響します。汚染源を削除すると、少しずつ回復します。
-              </p>
+              
+              <div>
+                <h4 className="font-semibold text-amber-700 mb-1">魚への影響</h4>
+                <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                  <li>プラスチックの摂取による消化器官の詰まり</li>
+                  <li>化学物質による生殖機能の低下</li>
+                  <li>油による呼吸困難</li>
+                  <li>生息地の破壊</li>
+                  <li>食物連鎖の崩壊</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-amber-700 mb-1">海洋生態系の重要性</h4>
+                <p className="text-gray-700">
+                  海洋生態系は地球の酸素の50%以上を生成し、気候調節に重要な役割を果たしています。また、世界中の何十億もの人々の食料源であり、多様な生物の生息地です。
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-amber-700 mb-1">私たちにできること</h4>
+                <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                  <li>プラスチックの使用を減らす</li>
+                  <li>ごみを適切に分別・処理する</li>
+                  <li>環境に優しい製品を選ぶ</li>
+                  <li>ビーチクリーニングに参加する</li>
+                  <li>環境保護団体をサポートする</li>
+                </ul>
+              </div>
+              
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    setShowCausesPanel(false);
+                    setShowQuiz(true);
+                  }}
+                  className="w-full py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  環境クイズに挑戦する
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1600,17 +1737,44 @@ function App() {
                 >
                   <Trash2 size={14} />
                 </button>
-                <button
-                  onClick={cleanOcean}
-                  disabled={pollutionLevel <= 0}
-                  className={pollutionLevel <= 0 
-                    ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                    : 'p-1.5 rounded text-white bg-green-500 hover:bg-green-600 transition'
-                  }
-                  title="Clean Ocean"
-                >
-                  <Plus size={14} />
-                </button>
+                
+                {/* 汚染源を追加するボタン */}
+                <div className="flex flex-col gap-1 ml-1 border-l pl-1">
+                  <button
+                    onClick={() => addPollutionSource('factory')}
+                    disabled={pollutionLevel >= 10}
+                    className={pollutionLevel >= 10 
+                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                      : 'p-1.5 rounded text-white bg-orange-500 hover:bg-orange-600 transition'
+                    }
+                    title="Add Factory Pollution"
+                  >
+                    <Factory size={14} />
+                  </button>
+                  <button
+                    onClick={() => addPollutionSource('boat')}
+                    disabled={pollutionLevel >= 10}
+                    className={pollutionLevel >= 10 
+                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                      : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
+                    }
+                    title="Add Boat Pollution"
+                  >
+                    <Anchor size={14} />
+                  </button>
+                  <button
+                    onClick={() => addPollutionSource('trash')}
+                    disabled={pollutionLevel >= 10}
+                    className={pollutionLevel >= 10 
+                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                      : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
+                    }
+                    title="Add Trash Pollution"
+                  >
+                    <Trash size={14} />
+                  </button>
+                </div>
+                
                 <label
                   className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
                   title="Add New Fish"
@@ -1623,6 +1787,20 @@ function App() {
                     className="hidden"
                   />
                 </label>
+                <button
+                  onClick={() => setShowCausesPanel(!showCausesPanel)}
+                  className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
+                  title="汚染の原因と影響"
+                >
+                  <BookOpen size={14} />
+                </button>
+                <button
+                  onClick={() => setShowQuiz(true)}
+                  className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
+                  title="環境クイズに挑戦"
+                >
+                  <HelpCircle size={14} />
+                </button>
                 <div className="text-xs text-gray-700 ml-1">
                   {pollutionLevel}/10
                 </div>
