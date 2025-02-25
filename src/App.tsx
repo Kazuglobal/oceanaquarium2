@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash } from 'lucide-react';
+import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info } from 'lucide-react';
 
 interface Fish {
   x: number;
@@ -96,6 +96,60 @@ interface QuizQuestion {
   explanation: string;
 }
 
+// 言語翻訳用のインターフェース
+interface TranslationStrings {
+  // ボタン
+  addPollution: string;
+  cleanOcean: string;
+  addFactory: string;
+  addBoat: string;
+  addTrash: string;
+  addNewFish: string;
+  pollutionCauses: string;
+  environmentalQuiz: string;
+  
+  // 言語
+  switchLanguage: string;
+  pollutionCausesTitle: string;
+  factoryPollution: string;
+  factoryPollutionDesc: string;
+  boatPollution: string;
+  boatPollutionDesc: string;
+  trashPollution: string;
+  trashPollutionDesc: string;
+  effectsTitle: string;
+  solutionsTitle: string;
+  effect1: string;
+  effect2: string;
+  effect3: string;
+  effect4: string;
+  solution1: string;
+  solution2: string;
+  solution3: string;
+  solution4: string;
+  
+  // クイズ
+  quizTitle: string;
+  questionCounter: string;
+  category_all: string;
+  category_pollution: string;
+  category_ecosystem: string;
+  previousButton: string;
+  nextButton: string;
+  finishButton: string;
+  quizCompleted: string;
+  yourScore: string;
+  perfectScore: string;
+  goodScore: string;
+  tryAgainScore: string;
+  retryButton: string;
+}
+
+interface Translations {
+  ja: TranslationStrings;
+  en: TranslationStrings;
+}
+
 function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
@@ -145,6 +199,7 @@ function App() {
   const [showCausesPanel, setShowCausesPanel] = useState(false);
   const [pollutionSources, setPollutionSources] = useState<PollutionSource[]>([]);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const [language, setLanguage] = useState<'ja' | 'en'>('ja'); // 言語設定の状態変数
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const waterCurrentRef = useRef({ x: 0, y: 0 });
   const pollutionSourceImagesRef = useRef<{[key: string]: HTMLImageElement | null}>({
@@ -154,6 +209,8 @@ function App() {
   });
   const [quizCategory, setQuizCategory] = useState<'pollution' | 'ecosystem' | 'all'>('all');
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const categories = ['all', 'pollution', 'ecosystem'];
 
   // クイズの質問リスト
   const allQuizQuestions: QuizQuestion[] = [
@@ -1365,249 +1422,472 @@ function App() {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center">
-      <div 
-        ref={containerRef}
-        style={{
-          position: 'relative',
-          width: isFullscreen ? '100vw' : '800px',
-          height: isFullscreen ? '100vh' : '600px'
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          className="bg-blue-100 rounded-lg cursor-pointer touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        />
-        
-        <button
-          onClick={() => setShowControls(!showControls)}
-          className="absolute left-4 bottom-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
-        >
-          <Settings size={20} className="text-gray-700" />
-        </button>
+  // 翻訳テキスト
+  const translations: Translations = {
+    ja: {
+      // ボタン
+      addPollution: "汚染を追加",
+      cleanOcean: "海をきれいにする",
+      addFactory: "工場を追加",
+      addBoat: "船を追加",
+      addTrash: "ゴミを追加",
+      addNewFish: "新しい魚を追加",
+      pollutionCauses: "汚染の原因と影響",
+      environmentalQuiz: "環境クイズ",
+      
+      // 言語
+      switchLanguage: "言語切替",
+      pollutionCausesTitle: "汚染原因と影響",
+      factoryPollution: "工場汚染",
+      factoryPollutionDesc: "工場からの化学物質や廃棄物が海に流れ込み、水質を悪化させます。",
+      boatPollution: "船舶汚染",
+      boatPollutionDesc: "船舶からの油漏れや排気ガスが海洋生物に悪影響を与えます。",
+      trashPollution: "ゴミ汚染",
+      trashPollutionDesc: "プラスチックごみ（ペットボトル、ビニール袋など）が海に流れ込み、海洋生物が誤飲したり絡まったりします。",
+      effectsTitle: "影響",
+      solutionsTitle: "解決策",
+      effect1: "プラスチックの摂取による消化器官の詰まり",
+      effect2: "化学物質による生殖機能の低下",
+      effect3: "油による呼吸困難",
+      effect4: "生息地の破壊",
+      solution1: "プラスチックの使用を減らす",
+      solution2: "ごみを適切に分別・処理する",
+      solution3: "環境に優しい製品を選ぶ",
+      solution4: "ビーチクリーニングに参加する",
+      
+      // クイズ
+      quizTitle: "環境クイズ",
+      questionCounter: "質問 {current}/{total}",
+      category_all: "すべて",
+      category_pollution: "汚染",
+      category_ecosystem: "生態系",
+      previousButton: "前へ",
+      nextButton: "次へ",
+      finishButton: "終了",
+      quizCompleted: "クイズ完了！",
+      yourScore: "あなたのスコア: {score}/{total}",
+      perfectScore: "素晴らしい！完璧です！",
+      goodScore: "よくできました！",
+      tryAgainScore: "もう一度挑戦してみましょう！",
+      retryButton: "もう一度挑戦"
+    },
+    en: {
+      // Buttons
+      addPollution: "Add Pollution",
+      cleanOcean: "Clean Ocean",
+      addFactory: "Add Factory",
+      addBoat: "Add Boat",
+      addTrash: "Add Trash",
+      addNewFish: "Add New Fish",
+      pollutionCauses: "Pollution Causes",
+      environmentalQuiz: "Environmental Quiz",
+      
+      // Language
+      switchLanguage: "Switch Language",
+      pollutionCausesTitle: "Pollution Causes & Effects",
+      factoryPollution: "Factory Pollution",
+      factoryPollutionDesc: "Chemicals and waste from factories flow into the sea, deteriorating water quality.",
+      boatPollution: "Boat Pollution",
+      boatPollutionDesc: "Oil leaks and exhaust gases from ships adversely affect marine life.",
+      trashPollution: "Trash Pollution",
+      trashPollutionDesc: "Plastic waste (bottles, bags, etc.) flows into the sea, causing marine life to ingest or become entangled.",
+      effectsTitle: "Effects",
+      solutionsTitle: "Solutions",
+      effect1: "Digestive tract blockage from plastic ingestion",
+      effect2: "Reduced reproductive function due to chemicals",
+      effect3: "Breathing difficulties due to oil",
+      effect4: "Habitat destruction",
+      solution1: "Reduce plastic use",
+      solution2: "Properly sort and dispose of waste",
+      solution3: "Choose environmentally friendly products",
+      solution4: "Participate in beach cleaning",
+      
+      // Quiz
+      quizTitle: "Environmental Quiz",
+      questionCounter: "Question {current}/{total}",
+      category_all: "All",
+      category_pollution: "Pollution",
+      category_ecosystem: "Ecosystem",
+      previousButton: "Previous",
+      nextButton: "Next",
+      finishButton: "Finish",
+      quizCompleted: "Quiz Completed!",
+      yourScore: "Your Score: {score}/{total}",
+      perfectScore: "Excellent! Perfect score!",
+      goodScore: "Well done!",
+      tryAgainScore: "Try again!",
+      retryButton: "Try Again"
+    }
+  };
 
-        {/* 情報パネルを表示するボタン */}
+  // 翻訳関数
+  const t = (key: keyof TranslationStrings, params?: Record<string, any>): string => {
+    let text = translations[language][key] || key;
+    
+    if (params) {
+      Object.keys(params).forEach(param => {
+        text = text.replace(`{${param}}`, params[param]);
+      });
+    }
+    
+    return text;
+  };
+
+  // 言語を切り替える関数
+  const toggleLanguage = () => {
+    setLanguage(prevLang => prevLang === 'ja' ? 'en' : 'ja');
+  };
+
+  // クイズ関連の関数を追加
+  const handlePreviousQuestion = () => {
+    if (currentQuizIndex > 0) {
+      setCurrentQuizIndex(currentQuizIndex - 1);
+      setSelectedAnswer(null);
+      setIsAnswerSubmitted(false);
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (selectedAnswer !== null) {
+      if (currentQuizIndex < quizQuestions.length - 1) {
+        setCurrentQuizIndex(currentQuizIndex + 1);
+        setSelectedAnswer(null);
+        setIsAnswerSubmitted(false);
+      } else {
+        setQuizCompleted(true);
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative overflow-hidden bg-gradient-to-b from-sky-300 to-sky-500"
+      style={{
+        width: isFullscreen ? '100vw' : '800px',
+        height: isFullscreen ? '100vh' : '600px'
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={canvasSize.width}
+        height={canvasSize.height}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="absolute top-0 left-0 w-full h-full"
+      />
+
+      {/* コントロールパネル */}
+      <div className="absolute top-2 left-2 flex flex-col gap-2 z-10">
+        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLanguage}
+              className="p-1.5 rounded text-white bg-indigo-500 hover:bg-indigo-600 transition flex items-center"
+              title={t('switchLanguage')}
+            >
+              <Globe size={14} />
+              <span className="ml-1 text-xs">{language.toUpperCase()}</span>
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded text-white bg-gray-500 hover:bg-gray-600 transition"
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={addPollution}
+              className="p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition"
+              title={t('addPollution')}
+            >
+              <Trash2 size={14} />
+            </button>
+            <button
+              onClick={cleanOcean}
+              className="p-1.5 rounded text-white bg-green-500 hover:bg-green-600 transition"
+              title={t('cleanOcean')}
+            >
+              <Settings size={14} />
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => addPollutionSource('factory')}
+              disabled={pollutionLevel >= 10}
+              className={pollutionLevel >= 10 
+                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                : 'p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition'
+              }
+              title={t('addFactory')}
+            >
+              <Factory size={14} />
+            </button>
+            <button
+              onClick={() => addPollutionSource('boat')}
+              disabled={pollutionLevel >= 10}
+              className={pollutionLevel >= 10 
+                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
+              }
+              title={t('addBoat')}
+            >
+              <Anchor size={14} />
+            </button>
+            <button
+              onClick={() => addPollutionSource('trash')}
+              disabled={pollutionLevel >= 10}
+              className={pollutionLevel >= 10 
+                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
+              }
+              title={t('addTrash')}
+            >
+              <Trash size={14} />
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <label
+              className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
+              title={t('addNewFish')}
+            >
+              <Upload size={14} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={() => setShowCausesPanel(!showCausesPanel)}
+              className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
+              title={t('pollutionCauses')}
+            >
+              <BookOpen size={14} />
+            </button>
+            <button
+              onClick={() => setShowQuiz(true)}
+              className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
+              title={t('environmentalQuiz')}
+            >
+              <HelpCircle size={14} />
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs font-medium text-gray-700">汚染レベル:</span>
+            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${
+                  pollutionLevel <= 3 ? 'bg-green-500' : 
+                  pollutionLevel <= 6 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${pollutionLevel * 10}%` }}
+              ></div>
+            </div>
+            <span className="text-xs font-medium text-gray-700">{pollutionLevel}/10</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 右側のボタン */}
+      <div className="absolute top-2 right-2 flex flex-col gap-3 z-10">
         <button
           onClick={() => setShowInfoPanel(!showInfoPanel)}
-          className="absolute right-4 top-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
+          className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
+          title="情報"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
+          <Info size={20} className="text-blue-600" />
         </button>
 
-        {/* クイズボタン */}
         <button
           onClick={() => setShowQuiz(!showQuiz)}
-          className="absolute right-4 top-20 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
+          className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
+          title="クイズ"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600">
-            <path d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"></path>
-          </svg>
+          <HelpCircle size={20} className="text-purple-600" />
         </button>
+      </div>
 
-        {/* 汚染源パネルを表示するボタン */}
-        <button
-          onClick={() => setShowCausesPanel(!showCausesPanel)}
-          className="absolute right-4 top-36 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-xl hover:bg-white/100 transition-all"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-600">
-            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-          </svg>
-        </button>
+      {/* 教育的な情報パネル */}
+      {showInfoPanel && (
+        <div className="absolute right-14 top-2 w-80 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto z-20">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-bold text-blue-600">{getEducationalInfo().title}</h3>
+            <button 
+              onClick={() => setShowInfoPanel(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <p className="text-sm text-gray-700">{getEducationalInfo().description}</p>
+          </div>
+          
+          <div className="mb-4">
+            <h4 className="font-semibold text-blue-600 mb-1">知っていますか？</h4>
+            <ul className="text-xs text-gray-700 list-disc pl-4 space-y-1">
+              {getEducationalInfo().facts.map((fact, index) => (
+                <li key={index}>{fact}</li>
+              ))}
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-green-600 mb-1">できること</h4>
+            <ul className="text-xs text-gray-700 list-disc pl-4 space-y-1">
+              {getEducationalInfo().tips.map((tip, index) => (
+                <li key={index}>{tip}</li>
+              ))}
+            </ul>
+          </div>
 
-        {/* 教育的な情報パネル */}
-        {showInfoPanel && (
-          <div className="absolute right-4 top-16 w-80 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-bold text-blue-600">{getEducationalInfo().title}</h3>
-              <button 
-                onClick={() => setShowInfoPanel(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-700">{getEducationalInfo().description}</p>
-            </div>
-            
-            <div className="mb-4">
-              <h4 className="font-semibold text-blue-600 mb-1">知っていますか？</h4>
-              <ul className="text-xs text-gray-700 list-disc pl-4 space-y-1">
-                {getEducationalInfo().facts.map((fact, index) => (
-                  <li key={index}>{fact}</li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-green-600 mb-1">できること</h4>
-              <ul className="text-xs text-gray-700 list-disc pl-4 space-y-1">
-                {getEducationalInfo().tips.map((tip, index) => (
-                  <li key={index}>{tip}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">汚染レベル:</span>
-                <div className="w-3/4 h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${
-                      pollutionLevel <= 3 ? 'bg-green-500' : 
-                      pollutionLevel <= 6 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${pollutionLevel * 10}%` }}
-                  ></div>
-                </div>
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">汚染レベル:</span>
+              <div className="w-3/4 h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${
+                    pollutionLevel <= 3 ? 'bg-green-500' : 
+                    pollutionLevel <= 6 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${pollutionLevel * 10}%` }}
+                ></div>
               </div>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-500">死んだ魚:</span>
-                <span className="text-xs font-medium text-red-500">{deadFishCount} 匹</span>
-              </div>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-gray-500">死んだ魚:</span>
+              <span className="text-xs font-medium text-red-500">{deadFishCount} 匹</span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* クイズパネル */}
-        {showQuiz && (
-          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white/95 backdrop-blur-sm p-5 rounded-lg shadow-xl">
+      {/* 汚染原因と影響のパネル */}
+      {showCausesPanel && (
+        <div className="absolute left-2 bottom-2 w-72 bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-xl z-20 max-h-[80vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-gray-800">{t('pollutionCausesTitle')}</h3>
+            <button
+              onClick={() => setShowCausesPanel(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-semibold text-red-600 flex items-center gap-1">
+                <Factory size={14} /> {t('factoryPollution')}
+              </h4>
+              <p className="text-xs text-gray-700 mt-1">{t('factoryPollutionDesc')}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-blue-600 flex items-center gap-1">
+                <Anchor size={14} /> {t('boatPollution')}
+              </h4>
+              <p className="text-xs text-gray-700 mt-1">{t('boatPollutionDesc')}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-yellow-600 flex items-center gap-1">
+                <Trash size={14} /> {t('trashPollution')}
+              </h4>
+              <p className="text-xs text-gray-700 mt-1">{t('trashPollutionDesc')}</p>
+            </div>
+            <div className="border-t pt-2">
+              <h4 className="font-semibold text-gray-800">{t('effectsTitle')}</h4>
+              <ul className="text-xs text-gray-700 mt-1 list-disc pl-4 space-y-1">
+                <li>{t('effect1')}</li>
+                <li>{t('effect2')}</li>
+                <li>{t('effect3')}</li>
+                <li>{t('effect4')}</li>
+              </ul>
+            </div>
+            <div className="border-t pt-2">
+              <h4 className="font-semibold text-green-600">{t('solutionsTitle')}</h4>
+              <ul className="text-xs text-gray-700 mt-1 list-disc pl-4 space-y-1">
+                <li>{t('solution1')}</li>
+                <li>{t('solution2')}</li>
+                <li>{t('solution3')}</li>
+                <li>{t('solution4')}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* クイズパネル */}
+      {showQuiz && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-30">
+          <div className="bg-white rounded-lg p-4 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-purple-600">海の環境クイズ</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
-                  {currentQuizIndex + 1}/{quizQuestions.length}
-                </span>
-                <button 
-                  onClick={closeQuiz}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
+              <h3 className="font-bold text-xl text-gray-800">{t('quizTitle')}</h3>
+              <button
+                onClick={() => {
+                  setShowQuiz(false);
+                  setCurrentQuizIndex(0);
+                  setSelectedAnswer(null);
+                  setQuizCompleted(false);
+                  setQuizScore(0);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            {/* カテゴリー選択 */}
-            {!isAnswerSubmitted && currentQuizIndex === 0 && !quizCompleted && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2">カテゴリーを選択:</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => changeQuizCategory('all')}
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      quizCategory === 'all'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    すべて
-                  </button>
-                  <button
-                    onClick={() => changeQuizCategory('pollution')}
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      quizCategory === 'pollution'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    海洋汚染
-                  </button>
-                  <button
-                    onClick={() => changeQuizCategory('ecosystem')}
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      quizCategory === 'ecosystem'
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    魚の生態系
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {quizCompleted ? (
-              <div className="text-center py-6">
-                <div className="text-2xl font-bold text-purple-600 mb-2">
-                  クイズ完了！
-                </div>
-                <div className="text-lg mb-4">
-                  あなたのスコア: <span className="font-bold">{quizScore}/{quizQuestions.length}</span>
-                </div>
-                <div className="mb-6">
-                  {quizScore >= Math.ceil(quizQuestions.length * 0.6) ? (
-                    <div className="p-3 bg-green-50 rounded-md border border-green-100">
-                      <p className="text-sm text-green-800">
-                        おめでとうございます！高得点を獲得したため、海の汚染レベルが下がり、新しい魚が追加されました！
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-yellow-50 rounded-md border border-yellow-100">
-                      <p className="text-sm text-yellow-800">
-                        もう少し頑張りましょう！60%以上の正解で特別な報酬がもらえます。
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <button
-                    onClick={() => {
-                      setQuizCompleted(false);
-                      setCurrentQuizIndex(0);
-                      setQuizScore(0);
-                      setSelectedAnswer(null);
-                      setIsAnswerSubmitted(false);
-                    }}
-                    className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
-                  >
-                    もう一度挑戦
-                  </button>
-                  <button
-                    onClick={closeQuiz}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
-                  >
-                    閉じる
-                  </button>
-                </div>
-              </div>
-            ) : (
+            {!quizCompleted ? (
               <>
                 <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-800 mb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="text-sm text-gray-600">
+                      {t('questionCounter', { current: currentQuizIndex + 1, total: quizQuestions.length })}
+                    </div>
+                    <div className="flex space-x-2">
+                      {categories.map((category) => (
+                        <button
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className={`px-2 py-1 text-xs rounded ${
+                            selectedCategory === category
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {t(`category_${category}` as keyof TranslationStrings)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <h4 className="font-semibold text-gray-800 mb-2">
                     {quizQuestions[currentQuizIndex].question}
-                  </p>
-                  
+                  </h4>
                   <div className="space-y-2">
                     {quizQuestions[currentQuizIndex].options.map((option, index) => (
                       <button
                         key={index}
                         onClick={() => !isAnswerSubmitted && handleAnswerSubmit(index)}
                         disabled={isAnswerSubmitted}
-                        className={`w-full text-left p-2 rounded-md text-sm transition-colors ${
+                        className={`w-full text-left p-2 rounded border ${
                           isAnswerSubmitted
                             ? index === quizQuestions[currentQuizIndex].correctAnswer
-                              ? 'bg-green-100 border border-green-300'
+                              ? 'bg-green-100 border-green-500'
                               : selectedAnswer === index
                                 ? 'bg-red-100 border border-red-300'
-                                : 'bg-gray-100 border border-gray-200'
+                                : 'bg-gray-50 border-gray-300'
                             : selectedAnswer === index
-                              ? 'bg-purple-100 border border-purple-300'
-                              : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                              ? 'bg-blue-100 border-blue-500'
+                              : 'border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         {option}
@@ -1615,250 +1895,116 @@ function App() {
                     ))}
                   </div>
                 </div>
-                
-                {isAnswerSubmitted && (
-                  <div className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                    <p className="text-xs text-blue-800">
-                      {quizQuestions[currentQuizIndex].explanation}
-                    </p>
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center">
-                  <div className="text-xs text-gray-500">
-                    スコア: <span className="font-medium text-purple-600">{quizScore}</span>
-                  </div>
-                  
-                  {isAnswerSubmitted && (
-                    <button
-                      onClick={goToNextQuiz}
-                      className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
-                    >
-                      {currentQuizIndex < quizQuestions.length - 1 ? '次の問題' : 'クイズ終了'}
-                    </button>
-                  )}
+                <div className="flex justify-between">
+                  <button
+                    onClick={handlePreviousQuestion}
+                    disabled={currentQuizIndex === 0}
+                    className={`px-3 py-1.5 rounded ${
+                      currentQuizIndex === 0
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {t('previousButton')}
+                  </button>
+                  <button
+                    onClick={handleNextQuestion}
+                    disabled={selectedAnswer === null}
+                    className={`px-3 py-1.5 rounded ${
+                      selectedAnswer === null
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    {currentQuizIndex === quizQuestions.length - 1
+                      ? t('finishButton')
+                      : t('nextButton')}
+                  </button>
                 </div>
               </>
-            )}
-          </div>
-        )}
-
-        {/* 汚染源パネル */}
-        {showCausesPanel && (
-          <div className="absolute right-4 top-20 w-80 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-amber-600">海洋汚染と生態系</h3>
-              <button 
-                onClick={() => setShowCausesPanel(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            
-            <div className="space-y-4 text-sm">
-              <div>
-                <h4 className="font-semibold text-amber-700 mb-1">海洋汚染の主な原因</h4>
-                <ul className="list-disc pl-5 space-y-1 text-gray-700">
-                  <li>プラスチックごみ（ペットボトル、ビニール袋など）</li>
-                  <li>工場からの化学物質の排出</li>
-                  <li>船舶からの油漏れ</li>
-                  <li>農業からの肥料や農薬の流出</li>
-                  <li>不適切に処理された下水</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-amber-700 mb-1">魚への影響</h4>
-                <ul className="list-disc pl-5 space-y-1 text-gray-700">
-                  <li>プラスチックの摂取による消化器官の詰まり</li>
-                  <li>化学物質による生殖機能の低下</li>
-                  <li>油による呼吸困難</li>
-                  <li>生息地の破壊</li>
-                  <li>食物連鎖の崩壊</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-amber-700 mb-1">海洋生態系の重要性</h4>
-                <p className="text-gray-700">
-                  海洋生態系は地球の酸素の50%以上を生成し、気候調節に重要な役割を果たしています。また、世界中の何十億もの人々の食料源であり、多様な生物の生息地です。
+            ) : (
+              <div className="text-center">
+                <h4 className="font-semibold text-xl text-gray-800 mb-2">
+                  {t('quizCompleted')}
+                </h4>
+                <p className="text-gray-600 mb-4">
+                  {t('yourScore', { score: quizScore, total: quizQuestions.length })}
                 </p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-amber-700 mb-1">私たちにできること</h4>
-                <ul className="list-disc pl-5 space-y-1 text-gray-700">
-                  <li>プラスチックの使用を減らす</li>
-                  <li>ごみを適切に分別・処理する</li>
-                  <li>環境に優しい製品を選ぶ</li>
-                  <li>ビーチクリーニングに参加する</li>
-                  <li>環境保護団体をサポートする</li>
-                </ul>
-              </div>
-              
-              <div className="pt-2">
+                <div className="mb-4">
+                  {quizScore === quizQuestions.length ? (
+                    <div className="text-green-500 font-semibold">{t('perfectScore')}</div>
+                  ) : quizScore >= quizQuestions.length * 0.7 ? (
+                    <div className="text-blue-500 font-semibold">{t('goodScore')}</div>
+                  ) : (
+                    <div className="text-amber-500 font-semibold">{t('tryAgainScore')}</div>
+                  )}
+                </div>
                 <button
                   onClick={() => {
-                    setShowCausesPanel(false);
-                    setShowQuiz(true);
+                    setCurrentQuizIndex(0);
+                    setSelectedAnswer(null);
+                    setQuizCompleted(false);
+                    setQuizScore(0);
                   }}
-                  className="w-full py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                 >
-                  環境クイズに挑戦する
+                  {t('retryButton')}
                 </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showControls && (
-          <div className="absolute left-16 bottom-4 flex gap-2 max-w-[calc(100%-5rem)]">
-            <div className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-xl">
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={toggleFullscreen}
-                  className="p-1.5 rounded text-white bg-indigo-500 hover:bg-indigo-600 transition"
-                  title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                >
-                  <Maximize2 size={14} />
-                </button>
-                <button
-                  onClick={addPollution}
-                  disabled={pollutionLevel >= 10}
-                  className={pollutionLevel >= 10 
-                    ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                    : 'p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition'
-                  }
-                  title="Add Pollution"
-                >
-                  <Trash2 size={14} />
-                </button>
-                
-                {/* 汚染源を追加するボタン */}
-                <div className="flex flex-col gap-1 ml-1 border-l pl-1">
-                  <button
-                    onClick={() => addPollutionSource('factory')}
-                    disabled={pollutionLevel >= 10}
-                    className={pollutionLevel >= 10 
-                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                      : 'p-1.5 rounded text-white bg-orange-500 hover:bg-orange-600 transition'
-                    }
-                    title="Add Factory Pollution"
-                  >
-                    <Factory size={14} />
-                  </button>
-                  <button
-                    onClick={() => addPollutionSource('boat')}
-                    disabled={pollutionLevel >= 10}
-                    className={pollutionLevel >= 10 
-                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                      : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
-                    }
-                    title="Add Boat Pollution"
-                  >
-                    <Anchor size={14} />
-                  </button>
-                  <button
-                    onClick={() => addPollutionSource('trash')}
-                    disabled={pollutionLevel >= 10}
-                    className={pollutionLevel >= 10 
-                      ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                      : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
-                    }
-                    title="Add Trash Pollution"
-                  >
-                    <Trash size={14} />
-                  </button>
-                </div>
-                
-                <label
-                  className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
-                  title="Add New Fish"
-                >
-                  <Upload size={14} />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  onClick={() => setShowCausesPanel(!showCausesPanel)}
-                  className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
-                  title="汚染の原因と影響"
-                >
-                  <BookOpen size={14} />
-                </button>
-                <button
-                  onClick={() => setShowQuiz(true)}
-                  className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
-                  title="環境クイズに挑戦"
-                >
-                  <HelpCircle size={14} />
-                </button>
-                <div className="text-xs text-gray-700 ml-1">
-                  {pollutionLevel}/10
-                </div>
-              </div>
-            </div>
-
-            {fishTypes.length > 0 && (
-              <div className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-xl">
-                <div className="flex items-center gap-2 overflow-x-auto max-w-[400px] scrollbar-thin">
-                  {fishTypes.map((type, index) => (
-                    <div key={index} className="flex-shrink-0 flex items-center gap-1 bg-gray-100 rounded px-1.5 py-1">
-                      <FishIcon size={14} className="text-blue-500" />
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateFishCount(index, -1)}
-                            className="p-0.5 rounded-full hover:bg-gray-200"
-                            disabled={type.count <= 0}
-                          >
-                            <Minus size={12} />
-                          </button>
-                          <span className="text-xs w-4 text-center">{type.count}</span>
-                          <button
-                            onClick={() => updateFishCount(index, 1)}
-                            className="p-0.5 rounded-full hover:bg-gray-200"
-                            disabled={type.count >= 10}
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateFishScale(index, -1)}
-                            className="p-0.5 rounded-full hover:bg-gray-200"
-                            disabled={type.scale <= 0.5}
-                          >
-                            <Minimize2 size={12} />
-                          </button>
-                          <span className="text-[10px] w-8 text-center">
-                            {(type.scale * 100).toFixed(0)}%
-                          </span>
-                          <button
-                            onClick={() => updateFishScale(index, 1)}
-                            className="p-0.5 rounded-full hover:bg-gray-200"
-                            disabled={type.scale >= 5.0}
-                          >
-                            <Maximize2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {fishTypes.length > 0 && (
+        <div className="absolute right-2 bottom-2 bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-xl z-10">
+          <div className="flex items-center gap-2 overflow-x-auto max-w-[400px] scrollbar-thin">
+            {fishTypes.map((type, index) => (
+              <div key={index} className="flex-shrink-0 flex items-center gap-1 bg-gray-100 rounded px-1.5 py-1">
+                <FishIcon size={14} className="text-blue-500" />
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateFishCount(index, -1)}
+                      className="p-0.5 rounded-full hover:bg-gray-200"
+                      disabled={type.count <= 0}
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="text-xs w-4 text-center">{type.count}</span>
+                    <button
+                      onClick={() => updateFishCount(index, 1)}
+                      className="p-0.5 rounded-full hover:bg-gray-200"
+                      disabled={type.count >= 10}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateFishScale(index, -1)}
+                      className="p-0.5 rounded-full hover:bg-gray-200"
+                      disabled={type.scale <= 0.5}
+                    >
+                      <Minimize2 size={12} />
+                    </button>
+                    <span className="text-[10px] w-8 text-center">
+                      {(type.scale * 100).toFixed(0)}%
+                    </span>
+                    <button
+                      onClick={() => updateFishScale(index, 1)}
+                      className="p-0.5 rounded-full hover:bg-gray-200"
+                      disabled={type.scale >= 5.0}
+                    >
+                      <Maximize2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
