@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info } from 'lucide-react';
+import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff } from 'lucide-react';
 
 interface Fish {
   x: number;
@@ -143,6 +143,10 @@ interface TranslationStrings {
   goodScore: string;
   tryAgainScore: string;
   retryButton: string;
+  hidePanel: string;
+  showPanel: string;
+  hideFish: string;
+  showFish: string;
 }
 
 interface Translations {
@@ -211,6 +215,8 @@ function App() {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const categories = ['all', 'pollution', 'ecosystem'];
+  const [showControlPanel, setShowControlPanel] = useState(true); // コントロールパネルの表示/非表示を管理する状態
+  const [showFish, setShowFish] = useState(true); // 魚の表示/非表示を管理する状態
 
   // クイズの質問リスト
   const allQuizQuestions: QuizQuestion[] = [
@@ -1247,16 +1253,18 @@ function App() {
       });
 
       // 魚を描画
-      fishesRef.current.forEach((fish) => {
-        // ... existing code ...
-      });
+      if (showFish) {
+        fishesRef.current.forEach((fish) => {
+          // ... existing code ...
+        });
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };
 
     render();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [pollutionLevel, fishTypes, canvasSize, deadFishCount, pollutionSources]);
+  }, [pollutionLevel, fishTypes, canvasSize, deadFishCount, pollutionSources, showFish]);
 
   // 汚染源を追加する関数
   const addPollutionSource = (type: 'factory' | 'boat' | 'trash') => {
@@ -1469,7 +1477,11 @@ function App() {
       perfectScore: "素晴らしい！完璧です！",
       goodScore: "よくできました！",
       tryAgainScore: "もう一度挑戦してみましょう！",
-      retryButton: "もう一度挑戦"
+      retryButton: "もう一度挑戦",
+      hidePanel: "パネルを隠す",
+      showPanel: "パネルを表示",
+      hideFish: "魚を隠す",
+      showFish: "魚を表示",
     },
     en: {
       // Buttons
@@ -1516,7 +1528,11 @@ function App() {
       perfectScore: "Excellent! Perfect score!",
       goodScore: "Well done!",
       tryAgainScore: "Try again!",
-      retryButton: "Try Again"
+      retryButton: "Try Again",
+      hidePanel: "Hide Panel",
+      showPanel: "Show Panel",
+      hideFish: "Hide Fish",
+      showFish: "Show Fish",
     }
   };
 
@@ -1578,125 +1594,148 @@ function App() {
         className="absolute top-0 left-0 w-full h-full"
       />
 
-      {/* コントロールパネル */}
-      <div className="absolute top-2 left-2 flex flex-col gap-2 z-10">
-        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleLanguage}
-              className="p-1.5 rounded text-white bg-indigo-500 hover:bg-indigo-600 transition flex items-center"
-              title={t('switchLanguage')}
-            >
-              <Globe size={14} />
-              <span className="ml-1 text-xs">{language.toUpperCase()}</span>
-            </button>
-            <button
-              onClick={toggleFullscreen}
-              className="p-1.5 rounded text-white bg-gray-500 hover:bg-gray-600 transition"
-            >
-              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={addPollution}
-              className="p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition"
-              title={t('addPollution')}
-            >
-              <Trash2 size={14} />
-            </button>
-            <button
-              onClick={cleanOcean}
-              className="p-1.5 rounded text-white bg-green-500 hover:bg-green-600 transition"
-              title={t('cleanOcean')}
-            >
-              <Settings size={14} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => addPollutionSource('factory')}
-              disabled={pollutionLevel >= 10}
-              className={pollutionLevel >= 10 
-                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                : 'p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition'
-              }
-              title={t('addFactory')}
-            >
-              <Factory size={14} />
-            </button>
-            <button
-              onClick={() => addPollutionSource('boat')}
-              disabled={pollutionLevel >= 10}
-              className={pollutionLevel >= 10 
-                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
-              }
-              title={t('addBoat')}
-            >
-              <Anchor size={14} />
-            </button>
-            <button
-              onClick={() => addPollutionSource('trash')}
-              disabled={pollutionLevel >= 10}
-              className={pollutionLevel >= 10 
-                ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
-                : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
-              }
-              title={t('addTrash')}
-            >
-              <Trash size={14} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <label
-              className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
-              title={t('addNewFish')}
-            >
-              <Upload size={14} />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </label>
-            <button
-              onClick={() => setShowCausesPanel(!showCausesPanel)}
-              className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
-              title={t('pollutionCauses')}
-            >
-              <BookOpen size={14} />
-            </button>
-            <button
-              onClick={() => setShowQuiz(true)}
-              className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
-              title={t('environmentalQuiz')}
-            >
-              <HelpCircle size={14} />
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-xs font-medium text-gray-700">汚染レベル:</span>
-            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${
-                  pollutionLevel <= 3 ? 'bg-green-500' : 
-                  pollutionLevel <= 6 ? 'bg-yellow-500' : 'bg-red-500'
-                }`}
-                style={{ width: `${pollutionLevel * 10}%` }}
-              ></div>
-            </div>
-            <span className="text-xs font-medium text-gray-700">{pollutionLevel}/10</span>
-          </div>
-        </div>
+      {/* パネル開閉ボタン */}
+      <div className="absolute top-2 left-2 z-20">
+        <button
+          onClick={() => setShowControlPanel(!showControlPanel)}
+          className={`p-2 rounded-full shadow-md ${showControlPanel ? 'bg-gray-500 text-white' : 'bg-white/80 text-gray-700'}`}
+          title={showControlPanel ? t('hidePanel') : t('showPanel')}
+        >
+          {showControlPanel ? <X size={16} /> : <Settings size={16} />}
+        </button>
       </div>
+
+      {/* コントロールパネル */}
+      {showControlPanel && (
+        <div className="absolute top-2 left-12 flex flex-col gap-2 z-10">
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleLanguage}
+                className="p-1.5 rounded text-white bg-indigo-500 hover:bg-indigo-600 transition flex items-center"
+                title={t('switchLanguage')}
+              >
+                <Globe size={14} />
+                <span className="ml-1 text-xs">{language.toUpperCase()}</span>
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                className="p-1.5 rounded text-white bg-gray-500 hover:bg-gray-600 transition"
+              >
+                {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+              {/* 魚の表示/非表示を切り替えるボタン（前回追加したもの） */}
+              {typeof showFish !== 'undefined' && (
+                <button
+                  onClick={() => setShowFish(!showFish)}
+                  className={`p-1.5 rounded text-white ${showFish ? 'bg-teal-500 hover:bg-teal-600' : 'bg-teal-600'} transition`}
+                  title={showFish ? t('hideFish') : t('showFish')}
+                >
+                  {showFish ? <Eye size={14} /> : <EyeOff size={14} />}
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={addPollution}
+                className="p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition"
+                title={t('addPollution')}
+              >
+                <Trash2 size={14} />
+              </button>
+              <button
+                onClick={cleanOcean}
+                className="p-1.5 rounded text-white bg-green-500 hover:bg-green-600 transition"
+                title={t('cleanOcean')}
+              >
+                <Settings size={14} />
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => addPollutionSource('factory')}
+                disabled={pollutionLevel >= 10}
+                className={pollutionLevel >= 10 
+                  ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                  : 'p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition'
+                }
+                title={t('addFactory')}
+              >
+                <Factory size={14} />
+              </button>
+              <button
+                onClick={() => addPollutionSource('boat')}
+                disabled={pollutionLevel >= 10}
+                className={pollutionLevel >= 10 
+                  ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                  : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
+                }
+                title={t('addBoat')}
+              >
+                <Anchor size={14} />
+              </button>
+              <button
+                onClick={() => addPollutionSource('trash')}
+                disabled={pollutionLevel >= 10}
+                className={pollutionLevel >= 10 
+                  ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
+                  : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
+                }
+                title={t('addTrash')}
+              >
+                <Trash size={14} />
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <label
+                className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
+                title={t('addNewFish')}
+              >
+                <Upload size={14} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={() => setShowCausesPanel(!showCausesPanel)}
+                className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
+                title={t('pollutionCauses')}
+              >
+                <BookOpen size={14} />
+              </button>
+              <button
+                onClick={() => setShowQuiz(true)}
+                className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
+                title={t('environmentalQuiz')}
+              >
+                <HelpCircle size={14} />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-xs font-medium text-gray-700">汚染レベル:</span>
+              <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${
+                    pollutionLevel <= 3 ? 'bg-green-500' : 
+                    pollutionLevel <= 6 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${pollutionLevel * 10}%` }}
+                ></div>
+              </div>
+              <span className="text-xs font-medium text-gray-700">{pollutionLevel}/10</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 右側のボタン */}
       <div className="absolute top-2 right-2 flex flex-col gap-3 z-10">
