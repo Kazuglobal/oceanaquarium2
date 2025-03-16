@@ -248,6 +248,10 @@ function App() {
   const [showControlPanel, setShowControlPanel] = useState(true); // コントロールパネルの表示/非表示を管理する状態
   const [showFish, setShowFish] = useState(true); // 魚の表示/非表示を管理する状態
   
+  // NASA API キー用のステート
+  const [nasaApiKey, setNasaApiKey] = useState<string>('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
+  
   // 海洋データ関連の状態
   const [oceanData, setOceanData] = useState<OceanData[]>([]);
   const [isLoadingOceanData, setIsLoadingOceanData] = useState(false);
@@ -635,7 +639,7 @@ function App() {
             size: 1 + Math.random() * 3,
             speed: 2 + Math.random() * 2,
             wobbleOffset: Math.random() * Math.PI * 2,
-            wobbleSpeed: 2 + Math.random()
+            wobbleSpeed: 2 + Math.random() * 2
           });
         }
       }
@@ -1704,13 +1708,21 @@ function App() {
       setIsLoadingOceanData(true);
       setOceanDataError(null);
       
-      // NASA APIのエンドポイント - 環境変数からAPIキーを取得
-      const apiKey = import.meta.env.VITE_NASA_API_KEY;
+      // ステートに保存されたAPIキーを使用（環境変数よりも優先）
+      const apiKey = nasaApiKey || import.meta.env.VITE_NASA_API_KEY;
+      
+      // APIキーが設定されていない場合はエラーメッセージを表示してシミュレーションデータを返す
+      if (!apiKey) {
+        console.warn('NASA API key is not set. Using simulated data instead.');
+        setOceanDataError('NASA API key is not configured. Using simulated data.');
+        return generateSimulatedOceanData('NASA');
+      }
+      
       const url = `https://api.nasa.gov/planetary/earth/assets?lon=-95.33&lat=29.78&date=2018-01-01&dim=0.15&api_key=${apiKey}`;
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`NASA API error: ${response.status}`);
+        throw new Error(`NASA API error: ${response.status} - ${response.statusText}`);
       }
       
       // 注: このAPIは画像を返すため、実際のデータ処理はより複雑になります
@@ -1998,12 +2010,21 @@ function App() {
         <div className="absolute right-4 top-16 w-96 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl max-h-[80%] overflow-y-auto z-20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-blue-600">{t('oceanData')}</h3>
-            <button 
-              onClick={() => setShowOceanDataPanel(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+                title="API Key Settings"
+              >
+                <Settings size={16} />
+              </button>
+              <button 
+                onClick={() => setShowOceanDataPanel(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
               <X size={18} />
-            </button>
+              </button>
+            </div>
           </div>
           
           <div className="mb-4 grid grid-cols-2 gap-2">
@@ -2042,7 +2063,7 @@ function App() {
           <div className="mb-4">
             <button
               onClick={fetchOceanData}
-              className="w-full p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition flex items-center justify-center gap-2"
+              className="w-full p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
             >
               <Database size={16} />
               {t('fetchData')}
@@ -2111,8 +2132,7 @@ function App() {
                         <span className="text-gray-500">{t('pollutionIndex')}:</span>
                         <span className={`ml-1 font-medium ${
                           data.pollutionIndex > 7 ? 'text-red-600' : 
-                          data.pollutionIndex > 4 ? 'text-yellow-600' : 
-                          'text-green-600'
+                          data.pollutionIndex > 4 ? 'text-yellow-600' : 'text-green-600'
                         }`}>
                           {data.pollutionIndex.toFixed(1)}/10
                         </span>
@@ -2127,9 +2147,42 @@ function App() {
               ))}
             </div>
           )}
+          
+          {/* NASA API キー入力フォーム */}
+          {showApiKeyInput && (
+            <div className="mb-4 p-3 bg-white rounded-md border border-blue-200">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                NASA API Key
+              </label>
+              <div className="flex">
+                <input
+                  type="text"
+                  value={nasaApiKey}
+                  onChange={(e) => setNasaApiKey(e.target.value)}
+                  placeholder="Enter NASA API Key"
+                  className="flex-1 p-2 border rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  onClick={() => {
+                    if (nasaApiKey.trim()) {
+                      // APIキーが入力されている場合、データを再取得
+                      fetchOceanData();
+                      setShowApiKeyInput(false);
+                    }
+                  }}
+                  className="p-2 bg-green-500 text-white rounded-r-md hover:bg-green-600"
+                >
+                  Save & Apply
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                API Key: {nasaApiKey ? `${nasaApiKey.substring(0, 4)}...${nasaApiKey.substring(nasaApiKey.length - 4)}` : 'Not set'}
+              </p>
+            </div>
+          )}
         </div>
       )}
-
+      
       {/* 右側のボタン */}
       <div className="absolute top-2 right-2 flex flex-col gap-3 z-10">
         <button
@@ -2185,7 +2238,7 @@ function App() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-200">
-              <div className="flex items-center justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500">汚染レベル:</span>
                 <div className="w-3/4 h-3 bg-gray-200 rounded-full overflow-hidden">
                   <div 
