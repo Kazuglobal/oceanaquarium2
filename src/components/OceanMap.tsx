@@ -1,11 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Map } from 'lucide-react';
 
 interface OceanMapProps {
   selectedLocation: string;
   onLocationSelect: (location: string) => void;
   availableLocations: string[];
+  showMap: boolean;
+  onToggleMap: () => void;
 }
 
 interface LocationCoordinate {
@@ -17,7 +20,9 @@ interface LocationCoordinate {
 const OceanMap: React.FC<OceanMapProps> = ({ 
   selectedLocation, 
   onLocationSelect,
-  availableLocations 
+  availableLocations,
+  showMap,
+  onToggleMap
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -104,7 +109,7 @@ const OceanMap: React.FC<OceanMapProps> = ({
   
   // 地図の初期化
   useEffect(() => {
-    if (!mapContainer.current || mapInitializedRef.current) return;
+    if (!mapContainer.current || mapInitializedRef.current || !showMap) return;
     
     try {
       // アクセストークンを設定
@@ -142,7 +147,7 @@ const OceanMap: React.FC<OceanMapProps> = ({
     } catch (error) {
       console.error('Error initializing map:', error);
     }
-  }, []);
+  }, [showMap]);
   
   // 選択された海域に地図を移動
   const centerMapOnSelectedLocation = (locationName: string) => {
@@ -162,7 +167,7 @@ const OceanMap: React.FC<OceanMapProps> = ({
   
   // 選択された海域が変更されたときに地図を移動し、マーカーの色を更新
   useEffect(() => {
-    if (!map.current || !mapInitializedRef.current) return;
+    if (!map.current || !mapInitializedRef.current || !showMap) return;
     
     console.log(`Selected location changed to: ${selectedLocation}`);
     
@@ -175,24 +180,39 @@ const OceanMap: React.FC<OceanMapProps> = ({
     // 地図を選択された海域に移動
     centerMapOnSelectedLocation(selectedLocation);
     
-  }, [selectedLocation]);
+  }, [selectedLocation, showMap]);
   
   return (
-    <div style={{ width: '100%', height: '300px', marginBottom: '20px' }}>
-      {mapboxToken ? (
-        <div 
-          ref={mapContainer} 
-          style={{ 
-            width: '100%', 
-            height: '100%', 
-            borderRadius: '8px', 
-            overflow: 'hidden',
-            border: '1px solid #ccc'
-          }} 
-        />
-      ) : (
-        <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
-          Mapbox APIキーが設定されていません
+    <div className="relative">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-medium text-gray-700">海洋マップ</h3>
+        <button
+          onClick={onToggleMap}
+          className={`p-1.5 rounded text-white ${showMap ? 'bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'} transition`}
+          title={showMap ? '地図を非表示' : '地図を表示'}
+        >
+          <Map size={14} />
+        </button>
+      </div>
+      
+      {showMap && (
+        <div style={{ width: '100%', height: '300px', marginBottom: '20px' }}>
+          {mapboxToken ? (
+            <div 
+              ref={mapContainer} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: '8px', 
+                overflow: 'hidden',
+                border: '1px solid #ccc'
+              }} 
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
+              Mapbox APIキーが設定されていません
+            </div>
+          )}
         </div>
       )}
     </div>

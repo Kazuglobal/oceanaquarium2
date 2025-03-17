@@ -260,6 +260,7 @@ function App() {
   const [showOceanDataPanel, setShowOceanDataPanel] = useState(false);
   const [selectedDataSource, setSelectedDataSource] = useState<'NOAA' | 'NASA' | 'ALL'>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [showMap, setShowMap] = useState(true); // 地図表示の状態を管理
   
   // 利用可能な場所のリスト
   const availableLocations = [
@@ -1927,6 +1928,8 @@ function App() {
                 setSelectedLocation(location);
               }}
               availableLocations={availableLocations.filter(loc => loc !== 'all')}
+              showMap={showMap}
+              onToggleMap={() => setShowMap(!showMap)}
             />
           </div>
           
