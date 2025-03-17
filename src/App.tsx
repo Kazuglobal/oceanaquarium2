@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2 } from 'lucide-react';
+import OceanMap from './components/OceanMap';
 
 interface Fish {
   x: number;
@@ -1917,7 +1918,18 @@ function App() {
             </div>
           </div>
           
-          {/* 既存のコントロールパネルの内容 */}
+          {/* 地図表示 */}
+          <div className="mb-4">
+            <OceanMap 
+              selectedLocation={selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation}
+              onLocationSelect={(location) => {
+                console.log(`Location selected from map: ${location}`);
+                setSelectedLocation(location);
+              }}
+              availableLocations={availableLocations.filter(loc => loc !== 'all')}
+            />
+          </div>
+          
           <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
             <div className="flex items-center gap-1">
               <button
