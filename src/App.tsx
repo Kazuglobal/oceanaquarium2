@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2 } from 'lucide-react';
 import OceanMap from './components/OceanMap';
+import { NASA_API_KEY } from './constants/apiKeys';
 
 interface Fish {
   x: number;
@@ -1717,7 +1718,7 @@ function App() {
       setOceanDataError(null);
       
       // ステートに保存されたAPIキーを使用（環境変数よりも優先）
-      const apiKey = nasaApiKey || import.meta.env.VITE_NASA_API_KEY;
+      const apiKey = nasaApiKey || NASA_API_KEY;
       
       // APIキーが設定されていない場合はエラーメッセージを表示してシミュレーションデータを返す
       if (!apiKey) {

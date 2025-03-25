@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Map } from 'lucide-react';
+import { MAPBOX_ACCESS_TOKEN } from '../constants/apiKeys';
 
 interface OceanMapProps {
   selectedLocation: string;
@@ -31,7 +32,7 @@ const OceanMap: React.FC<OceanMapProps> = ({
   const mapInitializedRef = useRef<boolean>(false);
   
   // Mapboxアクセストークン
-  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string;
+  const mapboxToken = MAPBOX_ACCESS_TOKEN;
   
   // 各海域の座標
   const oceanLocations: LocationCoordinate[] = [
