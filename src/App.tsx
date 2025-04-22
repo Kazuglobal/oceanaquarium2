@@ -214,7 +214,13 @@ interface OceanData {
   source: 'NOAA' | 'NASA' | 'SIMULATION';
 }
 
-function App() {
+import { Environment } from './LandingPage.tsx';
+
+interface AppProps {
+  env?: Environment;
+}
+
+const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
