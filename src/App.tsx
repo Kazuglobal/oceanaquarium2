@@ -1802,17 +1802,6 @@ function App() {
       
       // データを更新
       setOceanData(combinedData);
-      
-      // 汚染レベルを更新（平均値を使用）
-      const avgPollution = combinedData
-        .filter(d => d.pollutionIndex !== undefined)
-        .reduce((sum, d) => sum + (d.pollutionIndex || 0), 0) / 
-        combinedData.filter(d => d.pollutionIndex !== undefined).length;
-      
-      if (!isNaN(avgPollution)) {
-        setPollutionLevel(Math.min(10, Math.max(0, Math.round(avgPollution))));
-      }
-      
     } catch (error) {
       console.error('Error fetching ocean data:', error);
       setOceanDataError(error instanceof Error ? error.message : 'Unknown error fetching ocean data');
