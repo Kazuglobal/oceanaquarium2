@@ -2,6 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import OrbitControls from './OrbitControls';
 
+interface SpaceWorldProps {
+  uploadedImages?: { url: string; count: number; scale: number }[];
+}
+
 const PLANETS = [
   { name: '木星', size: 2.2, x: -4, y: 0, color: 0xc2b280 },
   { name: '金星', size: 1.5, x: -1, y: 0, color: 0xf3e2a9 },
@@ -9,19 +13,47 @@ const PLANETS = [
   { name: '地球', size: 1, x: 4, y: 0, color: 0x8b7b6b },
 ];
 
-const SpaceWorld: React.FC = () => {
+interface MovingSprite {
+  sprite: THREE.Sprite;
+  vx: number;
+  vy: number;
+}
+
+const SpaceWorld: React.FC<SpaceWorldProps> = ({ uploadedImages = [] }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const imageGroupRef = useRef<THREE.Group>();
+  const movingSpritesRef = useRef<MovingSprite[]>([]);
 
   useEffect(() => {
     const width = mountRef.current?.clientWidth || window.innerWidth;
     const height = mountRef.current?.clientHeight || window.innerHeight;
 
     const scene = new THREE.Scene();
-    // 背景画像を設定
+    // 背景画像を10秒ごとに自動切替
+    const bgList = [
+      '/images/space1.jpg',
+      '/images/space2.jpg',
+      '/images/space3.jpg',
+      '/images/space4.jpg',
+      '/images/space5.jpg',
+    ];
+    let bgIdx = 0;
     const loader = new THREE.TextureLoader();
-    loader.load('/images/space-planets.jpg', (texture) => {
-      scene.background = texture;
-    });
+    let bgTimeout: number;
+    const setBg = (idx: number) => {
+      loader.load(bgList[idx], (texture) => {
+        scene.background = texture;
+      });
+    };
+    setBg(bgIdx);
+    function scheduleNextBg() {
+      bgTimeout = window.setTimeout(() => {
+        bgIdx = (bgIdx + 1) % bgList.length;
+        setBg(bgIdx);
+        scheduleNextBg();
+      }, 30000); // 30秒ごと
+    }
+    scheduleNextBg();
 
     // カメラ
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
@@ -116,6 +148,11 @@ const SpaceWorld: React.FC = () => {
     renderer.setSize(width, height);
     mountRef.current?.appendChild(renderer.domElement);
 
+    // Group for uploaded images
+    const imgGroup = new THREE.Group();
+    scene.add(imgGroup);
+    imageGroupRef.current = imgGroup;
+
     // カメラ操作: OrbitControls
     // @ts-ignore
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -202,8 +239,26 @@ const SpaceWorld: React.FC = () => {
       }
     };
 
+    const handleSpriteTouch = (e: PointerEvent) => {
+      toNDC(e);
+      raycaster.setFromCamera(mouse, camera);
+      const sprites = imageGroupRef.current?.children || [];
+      const hits = raycaster.intersectObjects(sprites);
+      if (hits.length) {
+        const obj = hits[0].object as THREE.Sprite;
+        const entry = movingSpritesRef.current.find(it => it.sprite === obj);
+        if (entry) {
+          const speed = Math.hypot(entry.vx, entry.vy);
+          const angle = Math.random() * Math.PI * 2;
+          entry.vx = Math.cos(angle) * speed;
+          entry.vy = Math.sin(angle) * speed;
+        }
+      }
+    };
+
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerdown', handleSpriteTouch);
     window.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('wheel', onWheel);
 
@@ -267,33 +322,117 @@ const SpaceWorld: React.FC = () => {
         }
       }
 
+      // --- Move uploaded sprites with bounce ---
+      movingSpritesRef.current.forEach((obj) => {
+        const boundX = 12;
+        const boundY = 8;
+        let nextX = obj.sprite.position.x + obj.vx;
+        let nextY = obj.sprite.position.y + obj.vy;
+        if (nextX > boundX || nextX < -boundX) {
+          obj.vx *= -1;
+          nextX = obj.sprite.position.x + obj.vx;
+        }
+        if (nextY > boundY || nextY < -boundY) {
+          obj.vy *= -1;
+          nextY = obj.sprite.position.y + obj.vy;
+        }
+        obj.sprite.position.x = nextX;
+        obj.sprite.position.y = nextY;
+      });
+
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
     animate();
 
-    // クリーンアップ
+    // クリーンアップ: イベント削除、キャンバス削除、コンテキスト解放
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(frameId);
-      renderer.dispose();
-      mountRef.current?.removeChild(renderer.domElement);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerdown', handleSpriteTouch);
       window.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('wheel', onWheel);
-      mountRef.current?.removeChild(tooltip);
-      shootingStars.forEach((s) => {
-        scene.remove(s.head);
-        scene.remove(s.tail);
-      });
+      renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointerdown', handleSpriteTouch);
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(frameId);
+      if (bgTimeout) clearTimeout(bgTimeout);
+      // キャンバスをDOMから削除
+      if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+      // WebGLコンテキストを強制解放
+      if ((renderer as any).forceContextLoss) {
+        (renderer as any).forceContextLoss();
+      }
+      renderer.dispose();
     };
   }, []);
+
+  // 更新：アップロード画像が変わったらスプライトを再生成
+  useEffect(() => {
+    if (!imageGroupRef.current) return;
+    const group = imageGroupRef.current;
+    group.clear();
+    const removeBgToTexture = (img: HTMLImageElement): THREE.Texture => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return new THREE.Texture(img);
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const bgR = data[0], bgG = data[1], bgB = data[2];
+      const threshold = 30;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (
+          Math.abs(r - bgR) < threshold &&
+          Math.abs(g - bgG) < threshold &&
+          Math.abs(b - bgB) < threshold
+        ) {
+          data[i + 3] = 0;
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    // Generate sprites based on count and scale settings
+    uploadedImages.forEach(({ url, count, scale }) => {
+      for (let i = 0; i < count; i++) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const tex = removeBgToTexture(img);
+          const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+          const sprite = new THREE.Sprite(mat);
+          sprite.scale.set(scale, scale, scale);
+          sprite.position.set(
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 6,
+            -Math.random() * 4
+          );
+          group.add(sprite);
+          const speed = 0.01 + Math.random() * 0.02;
+          const angle = Math.random() * Math.PI * 2;
+          movingSpritesRef.current.push({
+            sprite,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+          });
+        };
+        img.src = url;
+      }
+    });
+  }, [uploadedImages]);
 
   return (
     <div ref={mountRef} style={{ width: '100vw', height: '100vh', position: 'absolute', inset: 0 }}>
       {/* 惑星名の表示など追加可能 */}
-      <div style={{position:'absolute',top:20,left:0,right:0,textAlign:'center',color:'#fff',fontWeight:'bold',fontSize:'2rem',textShadow:'0 2px 10px #000'}}>うちゅうのせかい</div>
     </div>
   );
 };
