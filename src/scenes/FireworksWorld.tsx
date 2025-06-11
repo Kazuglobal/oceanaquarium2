@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 interface Firework {
   x: number;
@@ -7,6 +8,7 @@ interface Firework {
   speed: number;
   hue: number;
   exploded: boolean;
+  shape?: DrawPoint[]; // optional custom shape
 }
 
 interface Particle {
@@ -17,6 +19,7 @@ interface Particle {
   alpha: number;
   hue: number;
   decay: number;
+  static?: boolean;
 }
 
 interface DrawPoint {
@@ -32,7 +35,9 @@ const FireworksWorld: React.FC = () => {
   const rafRef = useRef<number>();
   const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const drawingActive = useRef(false);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const startTimeRef = useRef<number>(0);
+  const startPosRef = useRef<{x:number;y:number}>({x:0,y:0});
+  const [isDrawMode, setIsDrawMode] = useState(false);
   const [drawPoints, setDrawPoints] = useState<DrawPoint[]>([]);
 
   const launchFirework = (width: number, height: number) => {
@@ -44,16 +49,77 @@ const FireworksWorld: React.FC = () => {
     fireworksRef.current.push({ x, y, targetY, speed, hue, exploded: false });
   };
 
-  const handlePointerDown = (e: PointerEvent) => {
-    if (!drawRef.current) return;
-    if (!isDrawing) return;
+  const handlePointerDown: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
+    if (!isDrawMode || !drawRef.current) return;
     const rect = drawRef.current.getBoundingClientRect();
-    const startX = e.clientX - rect.left;
-    const startY = e.clientY - rect.top;
-    setDrawPoints([{ x: startX, y: startY }]);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDrawPoints([{ x, y }]);
     drawCtxRef.current?.beginPath();
-    drawCtxRef.current?.moveTo(startX, startY);
+    drawCtxRef.current?.moveTo(x, y);
     drawingActive.current = true;
+    startTimeRef.current = performance.now();
+    startPosRef.current = {x, y};
+  };
+
+  const handlePointerMove: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
+    if (!drawingActive.current || !drawRef.current) return;
+    const rect = drawRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDrawPoints((pts) => [...pts, { x, y }]);
+    drawCtxRef.current?.lineTo(x, y);
+    drawCtxRef.current?.stroke();
+  };
+
+  const handlePointerUp: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
+    if (!drawingActive.current || !drawRef.current) return;
+    drawingActive.current = false;
+    const timeDelta = performance.now() - startTimeRef.current;
+    const rect = drawRef.current.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+    const dy = startPosRef.current.y - endY; // upward positive
+    const speed = dy / timeDelta; // px per ms
+    if (dy > 30 && speed > 0.3) {
+      // launch custom firework based on flick strength
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const targetY = Math.max(endY - dy * 2, canvas.height * 0.2);
+        const hue = Math.random()*360;
+        fireworksRef.current.push({x:endX, y:canvas.height, targetY, speed:Math.min(10, dy/20), hue, exploded:false});
+        // save to Supabase
+        const pathStr = JSON.stringify(drawPoints);
+        supabase.from('fireworks').insert({ path: pathStr, user: null }).then(({ error })=>{
+          if(error) console.error('Supabase insert error', error.message);
+        });
+      }
+    }
+    // clear drawing
+    setDrawPoints([]);
+    drawCtxRef.current?.clearRect(0,0,drawRef.current.width, drawRef.current.height);
+  };
+
+  const textToPoints = (text:string): DrawPoint[] => {
+    const off = document.createElement('canvas');
+    off.width = 300; off.height = 120;
+    const ctx = off.getContext('2d')!;
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 100px sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.clearRect(0,0,off.width, off.height);
+    ctx.fillText(text, 0, 0);
+    const img = ctx.getImageData(0,0,off.width, off.height).data;
+    const pts: DrawPoint[] = [];
+    for(let y=0;y<off.height;y+=4){
+      for(let x=0;x<off.width;x+=4){
+        const idx = (y*off.width + x)*4 + 3;
+        if(img[idx]>128) pts.push({x, y});
+      }
+    }
+    // normalize around center
+    const cx = off.width/2, cy = off.height/2;
+    return pts.map(p=>({x:p.x-cx, y:p.y-cy}));
   };
 
   useEffect(() => {
@@ -102,19 +168,30 @@ const FireworksWorld: React.FC = () => {
           if (fw.y <= fw.targetY) {
             fw.exploded = true;
             // spawn particles
-            const count = 60;
-            for (let i = 0; i < count; i++) {
-              const angle = (Math.PI * 2 * i) / count;
-              const speed = 2 + Math.random() * 2;
-              particlesRef.current.push({
-                x: fw.x,
-                y: fw.y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                alpha: 1,
-                hue: fw.hue,
-                decay: 0.015 + Math.random() * 0.015,
+            if (fw.shape) {
+              const scale = 0.7;
+              fw.shape.forEach(pt=>{
+                const xPos = fw.x + pt.x*scale;
+                const yPos = fw.y + pt.y*scale;
+                const vx = 0;
+                const vy = 0;
+                particlesRef.current.push({x:xPos, y:yPos, vx, vy, alpha:1, hue:fw.hue, decay:0.001, static:true});
               });
+            } else {
+              const count = 50;
+              for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const speed = 2 + Math.random() * 2;
+                particlesRef.current.push({
+                  x: fw.x,
+                  y: fw.y,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  alpha: 1,
+                  hue: fw.hue,
+                  decay: 0.015 + Math.random() * 0.015,
+                });
+              }
             }
           }
         }
@@ -126,8 +203,8 @@ const FireworksWorld: React.FC = () => {
       particlesRef.current.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.02; // gravity
-        p.alpha -= p.decay;
+        if(!p.static) p.vy += 0.02; // gravity
+        if(p.static) p.alpha -= p.decay*0.2; else p.alpha -= p.decay;
         ctx.beginPath();
         ctx.fillStyle = `hsla(${p.hue},100%,50%,${p.alpha})`;
         ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
@@ -136,10 +213,10 @@ const FireworksWorld: React.FC = () => {
       // remove dead particles
       particlesRef.current = particlesRef.current.filter((p) => p.alpha > 0);
 
-      // Draw UI overlay
+      // Draw UI overlay path when in draw mode
       drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      if (drawPoints.length > 0) {
-        drawCtx.strokeStyle = 'black';
+      if (isDrawMode && drawPoints.length > 1) {
+        drawCtx.strokeStyle = 'white';
         drawCtx.lineWidth = 2;
         drawCtx.beginPath();
         drawCtx.moveTo(drawPoints[0].x, drawPoints[0].y);
@@ -162,11 +239,38 @@ const FireworksWorld: React.FC = () => {
 
   return (
     <div>
+      <button
+        className="absolute top-4 left-4 z-20 bg-white/20 hover:bg-white/40 text-white rounded-md px-4 py-2 backdrop-blur-md"
+        onClick={() => setIsDrawMode((m) => !m)}
+      >
+        {isDrawMode ? '完了' : '描く'}
+      </button>
+      <button
+        className="absolute top-4 left-20 z-20 bg-white/20 hover:bg-white/40 text-white rounded-md px-4 py-2 backdrop-blur-md"
+        onClick={()=>{
+          const txt = prompt('花火にするメッセージを入力');
+          if(!txt) return;
+          const shape = textToPoints(txt.slice(0,6)); // limit length
+          const canvas = canvasRef.current;
+          if(canvas){
+            const x = canvas.width/2;
+            const y = canvas.height;
+            const targetY = canvas.height*0.3;
+            const hue = Math.random()*360;
+            fireworksRef.current.push({x, y, targetY, speed:6, hue, exploded:false, shape});
+            supabase.from('fireworks').insert({path:JSON.stringify(shape), user:null}).then(({error})=>{if(error)console.error(error.message)});
+          }
+        }}
+      >
+        文字花火
+      </button>
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0 }} />
       <canvas
         ref={drawRef}
-        style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}
+        style={{ position: 'fixed', inset: 0, pointerEvents: isDrawMode ? 'auto' : 'none' }}
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       />
     </div>
   );
