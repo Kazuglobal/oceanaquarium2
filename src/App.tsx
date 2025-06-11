@@ -709,14 +709,58 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
-  useEffect(() => {
-    const backgroundImage = new Image();
-    backgroundImage.crossOrigin = 'anonymous';
-    backgroundImage.src = 'https://images.unsplash.com/photo-1682687982501-1e58ab814714?auto=format&fit=crop&w=1920&h=1080&q=80';
-    backgroundImage.onload = () => {
-      backgroundRef.current = backgroundImage;
-    };
+  // --- Dynamic Ocean Backgrounds ---
+  const [oceanBgList, setOceanBgList] = useState<string[]>([]);
+  const [currentBgIdx, setCurrentBgIdx] = useState(0);
+  const defaultOceanBg = 'https://images.unsplash.com/photo-1682687982501-1e58ab814714?auto=format&fit=crop&w=1920&h=1080&q=80';
 
+  useEffect(() => {
+    // Load ocean background list
+    fetch('/images/ocean-bg-list.json')
+      .then(res => res.json())
+      .then((list: string[]) => {
+        // Ensure the original background is included
+        let merged = list.includes(defaultOceanBg) ? list : [defaultOceanBg, ...list];
+        setOceanBgList(merged);
+      })
+      .catch(() => {
+        setOceanBgList([defaultOceanBg]);
+      });
+  }, []);
+
+  // Set up interval for background switching
+  useEffect(() => {
+    if (oceanBgList.length === 0) return;
+    let idx = 0;
+    // Set initial background
+    const setBg = (i: number) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.src = oceanBgList[i];
+      img.onload = () => {
+        backgroundRef.current = img;
+        setCurrentBgIdx(i);
+      };
+    };
+    setBg(0);
+    const interval = setInterval(() => {
+      idx = (idx + 1) % oceanBgList.length;
+      setBg(idx);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [oceanBgList]);
+
+  useEffect(() => {
+    // Fallback: if dynamic backgrounds not loaded, ensure at least one bg
+    if (!backgroundRef.current) {
+      const backgroundImage = new Image();
+      backgroundImage.crossOrigin = 'anonymous';
+      backgroundImage.src = defaultOceanBg;
+      backgroundImage.onload = () => {
+        backgroundRef.current = backgroundImage;
+      };
+    }
+    // Bubbles
     bubblesRef.current = Array.from({ length: 100 }, () => ({
       x: Math.random() * canvasSize.width,
       y: canvasSize.height + Math.random() * 200,

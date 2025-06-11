@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # 必要に応じてNode.jsのバージョンを指定してください
+  # NODE_VERSION = "18"
+
+# シングルページアプリケーション(SPA)用のリダイレクト設定
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

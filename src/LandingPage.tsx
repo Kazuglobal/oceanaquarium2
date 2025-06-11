@@ -1,8 +1,9 @@
 import React from 'react';
 import './LandingPage.css';
-import { Fish, Leaf, Sun, Rocket } from 'lucide-react';
+import { Fish, Leaf, Sun, Rocket, Sparkles } from 'lucide-react';
+import FireworksLobby from './components/FireworksLobby';
 
-export type Environment = 'ocean' | 'nature' | 'sky' | 'space';
+export type Environment = 'ocean' | 'nature' | 'sky' | 'space' | 'fireworks';
 
 interface LandingPageProps {
   onSelect: (env: Environment) => void;
@@ -43,6 +44,13 @@ const envs: {
     bg: 'from-purple-700 via-fuchsia-700 to-black',
     icon: <Rocket size={48} className="drop-shadow-md" />,
   },
+  {
+    id: 'fireworks',
+    title: '花火のせかい',
+    sub: 'みんなで夜空を彩ろう！',
+    bg: 'from-indigo-600 via-purple-700 to-black',
+    icon: <Sparkles size={48} className="drop-shadow-md" />,
+  },
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
@@ -68,7 +76,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
   });
 
   return (
-    <div className="relative w-screen h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-200 via-blue-400 to-indigo-700 overflow-hidden px-4 font-['M PLUS Rounded 1c', sans-serif]">
+    <div className="relative w-screen h-screen flex flex-col items-center justify-start bg-gradient-to-b from-blue-200 via-blue-400 to-indigo-700 overflow-hidden px-4 pt-4 font-['M PLUS Rounded 1c', sans-serif]">
+      {/* 上部ロビー花火 */}
+      <FireworksLobby />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {bubbles}
       </div>

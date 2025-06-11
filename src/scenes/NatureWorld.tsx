@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 // @ts-ignore - OrbitControlsをany型として扱う
 import OrbitControls from './OrbitControls';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { CatmullRomCurve3 } from 'three';
 
 interface NatureWorldProps {
   uploadedImages?: { url: string; count: number; scale: number }[];
@@ -27,8 +29,15 @@ interface Plant {
   swayPhase: number;
 }
 
-const NatureWorld: React.FC<NatureWorldProps> = ({ 
-  uploadedImages = [], 
+interface Bird {
+  mesh: THREE.Group;
+  path: THREE.CatmullRomCurve3;
+  pathProgress: number;
+  moveSpeed: number;
+}
+
+const NatureWorld: React.FC<NatureWorldProps> = ({
+  uploadedImages = [],
   season = 'spring',
   timeOfDay = 'day'
 }) => {
@@ -40,7 +49,9 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
   const butterfliesRef = useRef<Butterfly[]>([]);
   const groundRef = useRef<THREE.Mesh>();
   const terrainGroupRef = useRef<THREE.Group>();
-  
+  const birdsRef = useRef<Bird[]>([]);
+  const loader = useRef(new GLTFLoader());
+
   // 季節によって色や環境を変更
   const getSeasonalColors = () => {
     switch(season) {
@@ -81,7 +92,7 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
         };
     }
   };
-  
+
   // 時間帯によって光の状態を変更
   const getDayLightSettings = () => {
     switch(timeOfDay) {
@@ -184,7 +195,7 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
     // 起伏を作成
     const vertices = groundGeometry.attributes.position.array;
     for (let i = 0; i < vertices.length; i += 3) {
-      // xzに応じて起伏を計算
+      // xzに応じた起伏を計算
       const x = vertices[i];
       const z = vertices[i + 2];
       
@@ -584,6 +595,54 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
       return butterfly;
     };
     
+    // 鳥を生成する関数
+    const createBird = (startPos: THREE.Vector3) => {
+      const birdModelPath = '/models/bird.glb'; // Placeholder path
+
+      loader.current.load(
+        birdModelPath,
+        (gltf) => {
+          const birdMesh = gltf.scene;
+          birdMesh.scale.set(0.2, 0.2, 0.2); // Adjust scale as needed
+          birdMesh.position.copy(startPos);
+          birdMesh.castShadow = true;
+
+          // Create a flight path (e.g., a circle or spline)
+          const pathPoints = [];
+          const pathRadius = 15 + Math.random() * 10;
+          const pathHeight = startPos.y + 5 + Math.random() * 5; // Fly above start position
+          for (let i = 0; i < 10; i++) {
+            const angle = (i / 10) * Math.PI * 2;
+            pathPoints.push(
+              new THREE.Vector3(
+                startPos.x + Math.cos(angle) * pathRadius,
+                pathHeight + (Math.random() - 0.5) * 2, // Slight height variation
+                startPos.z + Math.sin(angle) * pathRadius
+              )
+            );
+          }
+          const flightPath = new THREE.CatmullRomCurve3(pathPoints, true); // true makes it a closed loop
+
+          const birdData: Bird = {
+            mesh: birdMesh,
+            path: flightPath,
+            pathProgress: Math.random(), // Start at random point on path
+            moveSpeed: 0.001 + Math.random() * 0.001, // Vary speed
+          };
+
+          sceneRef.current?.add(birdMesh);
+          birdsRef.current.push(birdData);
+
+          console.log('Bird model loaded successfully');
+
+        },
+        undefined, // onProgress callback (optional)
+        (error) => {
+          console.error('Error loading bird model:', error);
+        }
+      );
+    };
+    
     // 自然環境を生成
     const populateNature = () => {
       // 木を生成 - 40本
@@ -613,6 +672,15 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
         const y = 2 + Math.random() * 3;
         const z = (Math.random() - 0.5) * 30;
         createButterfly(x, y, z);
+      }
+
+      // 鳥を生成
+      const birdCount = 5; // Add 5 birds
+      for (let i = 0; i < birdCount; i++) {
+        const x = (Math.random() - 0.5) * 60;
+        const z = (Math.random() - 0.5) * 60;
+        const y = getHeightAt(x, z) + 10 + Math.random() * 5; // Start birds higher up
+        createBird(new THREE.Vector3(x, y, z));
       }
     };
     
@@ -721,7 +789,24 @@ const NatureWorld: React.FC<NatureWorldProps> = ({
           }
         }
       });
-      
+
+      // Update Birds
+      birdsRef.current.forEach(bird => {
+        bird.pathProgress += bird.moveSpeed * 60 * 0.01; // Update progress based on speed
+        if (bird.pathProgress >= 1) {
+          bird.pathProgress -= 1; // Loop the progress
+        }
+
+        const currentPosition = bird.path.getPointAt(bird.pathProgress);
+        bird.mesh.position.copy(currentPosition);
+
+        // Make bird look ahead on the path
+        const lookAtProgress = (bird.pathProgress + 0.01) % 1; // Look slightly ahead
+        const lookAtPosition = bird.path.getPointAt(lookAtProgress);
+        bird.mesh.lookAt(lookAtPosition);
+
+      });
+
       controls.update();
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
