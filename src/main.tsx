@@ -9,6 +9,8 @@ import KidsLandingPage from './KidsLandingPage';
 import React, { useState } from 'react';
 import './index.css';
 import { Environment } from './LandingPage.tsx';
+// import { StagewiseToolbar } from '@stagewise/toolbar-react';
+// import { ReactPlugin } from '@stagewise-plugins/react';
 
 const Root: React.FC = () => {
   const [env, setEnv] = useState<Environment | null>(null);
@@ -22,6 +24,9 @@ const Root: React.FC = () => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    {/* {import.meta.env.DEV && (
+      <StagewiseToolbar config={{ plugins: [ReactPlugin] }} />
+    )} */}
     <Root />
   </StrictMode>
 );
