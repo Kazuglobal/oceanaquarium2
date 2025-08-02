@@ -178,6 +178,7 @@ interface TranslationStrings {
   garbageCleanup: string;
   cleanupScore: string;
   garbageRemoved: string;
+  garbageRemaining: string;
   waterQualityImproving: string;
   fishCommunication: string;
   oceanFacts: string;
@@ -258,7 +259,7 @@ interface AppProps {
   env?: Environment;
 }
 
-const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
+const App: React.FC<AppProps> = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
@@ -285,7 +286,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     boat: null,
     trash: null
   });
-  const [quizCategory, setQuizCategory] = useState<'pollution' | 'ecosystem' | 'all'>('all');
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const categories = ['all', 'pollution', 'ecosystem'];
@@ -565,10 +565,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   ];
 
-  // 選択されたカテゴリーに基づいてクイズ質問をフィルタリング
-  const quizQuestions = quizCategory === 'all' 
-    ? allQuizQuestions 
-    : allQuizQuestions.filter(q => q.category === quizCategory);
+  const quizQuestions = allQuizQuestions;
 
   // クイズの回答を処理する関数
   const handleAnswerSubmit = (selectedIndex: number) => {
@@ -580,50 +577,8 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
 
-  // 次のクイズに進む関数
-  const goToNextQuiz = () => {
-    if (currentQuizIndex < quizQuestions.length - 1) {
-      setCurrentQuizIndex(prev => prev + 1);
-      setSelectedAnswer(null);
-      setIsAnswerSubmitted(false);
-    } else {
-      // クイズ終了時の処理
-      // 高得点の場合、汚染を少し減らす報酬を与える
-      const passScore = Math.ceil(quizQuestions.length * 0.6); // 60%以上で合格
-      if (quizScore >= passScore) {
-        setPollutionLevel(prev => Math.max(0, prev - 1));
-        // 新しい魚を追加する報酬
-        if (fishTypes.length > 0) {
-          const randomTypeIndex = Math.floor(Math.random() * fishTypes.length);
-          updateFishCount(randomTypeIndex, 1);
-        }
-        setQuizCompleted(true);
-      }
-      // クイズをリセット
-      setSelectedAnswer(null);
-      setIsAnswerSubmitted(false);
-    }
-  };
 
-  // クイズを閉じる関数
-  const closeQuiz = () => {
-      setCurrentQuizIndex(0);
-      setQuizScore(0);
-    setSelectedAnswer(null);
-    setIsAnswerSubmitted(false);
-    setQuizCompleted(false);
-      setShowQuiz(false);
-  };
 
-  // クイズカテゴリーを変更する関数
-  const changeQuizCategory = (category: 'pollution' | 'ecosystem' | 'all') => {
-    setQuizCategory(category);
-    setCurrentQuizIndex(0);
-    setQuizScore(0);
-    setSelectedAnswer(null);
-    setIsAnswerSubmitted(false);
-    setQuizCompleted(false);
-  };
 
   const addPollution = () => {
     setPollutionLevel(prev => {
@@ -875,7 +830,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
 
   // --- Dynamic Ocean Backgrounds ---
   const [oceanBgList, setOceanBgList] = useState<string[]>([]);
-  const [currentBgIdx, setCurrentBgIdx] = useState(0);
   const defaultOceanBg = 'https://images.unsplash.com/photo-1682687982501-1e58ab814714?auto=format&fit=crop&w=1920&h=1080&q=80';
 
   useEffect(() => {
@@ -903,7 +857,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       img.src = oceanBgList[i];
       img.onload = () => {
         backgroundRef.current = img;
-        setCurrentBgIdx(i);
       };
     };
     setBg(0);
@@ -1461,7 +1414,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       }
 
       // 泡を描画
-      bubblesRef.current.forEach((bubble, index) => {
+      bubblesRef.current.forEach(() => {
         // ... existing code ...
       });
 
@@ -1560,7 +1513,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         ctx.restore();
       });
 
-      waterQualityEffects.forEach((effect, index) => {
+      waterQualityEffects.forEach((effect) => {
         ctx.save();
         ctx.translate(effect.x, effect.y);
         
@@ -1648,7 +1601,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
 
       // 魚を描画
       if (showFish) {
-      fishesRef.current.forEach((fish) => {
+      fishesRef.current.forEach(() => {
         // ... existing code ...
       });
       }
@@ -1678,19 +1631,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     setPollutionLevel(prev => Math.min(10, prev + (type === 'factory' ? 2 : type === 'boat' ? 1 : 0.5)));
   };
 
-  // 汚染源を削除する関数
-  const removePollutionSource = (index: number) => {
-    setPollutionSources(prev => {
-      const newSources = [...prev];
-      const removedSource = newSources[index];
-      newSources.splice(index, 1);
-      
-      // 汚染源が削除されたときに汚染レベルを下げる
-      setPollutionLevel(prev => Math.max(0, prev - (removedSource.type === 'factory' ? 1 : removedSource.type === 'boat' ? 0.5 : 0.2)));
-      
-      return newSources;
-    });
-  };
 
   const changeOceanArea = (areaName: string) => {
     setCurrentOceanArea(areaName);
@@ -1760,30 +1700,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }));
   };
 
-  const handleFishCommunication = (fish1: Fish, fish2: Fish) => {
-    const distance = calculateDistance(fish1.x, fish1.y, fish2.x, fish2.y);
-    if (distance < 50) {
-      const messages = [
-        language === 'ja' ? '海がきれいになってきたね！' : 'The ocean is getting cleaner!',
-        language === 'ja' ? '一緒に泳ごう！' : 'Let\'s swim together!',
-        language === 'ja' ? 'この海域はどう？' : 'How is this ocean area?',
-        language === 'ja' ? '友達になりませんか？' : 'Would you like to be friends?',
-        language === 'ja' ? '協力してゴミを見つけよう！' : 'Let\'s work together to find garbage!'
-      ];
-      
-      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-      
-      setFishCommunications(prev => [
-        ...prev.slice(-4), // 最新5件のみ保持
-        {
-          fishId1: fish1.id,
-          fishId2: fish2.id,
-          message: randomMessage,
-          timestamp: Date.now()
-        }
-      ]);
-    }
-  };
 
   // 汚染源の画像を読み込む
   useEffect(() => {
@@ -2006,6 +1922,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       garbageCleanup: "ゴミ清掃",
       cleanupScore: "清掃スコア",
       garbageRemoved: "ゴミを除去しました！",
+      garbageRemaining: "残りのゴミ",
       waterQualityImproving: "水質が改善されています",
       fishCommunication: "魚の会話",
       clickGarbageToClean: "ゴミをクリックして清掃しよう！",
@@ -2086,6 +2003,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       garbageCleanup: "Garbage Cleanup",
       cleanupScore: "Cleanup Score",
       garbageRemoved: "Garbage removed!",
+      garbageRemaining: "Garbage Remaining",
       waterQualityImproving: "Water quality improving",
       fishCommunication: "Fish Communication",
       clickGarbageToClean: "Click on garbage to clean it up!",
@@ -2188,17 +2106,9 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       
       // NASA CMR API endpoints
       const cmrSearchUrl = 'https://cmr.earthdata.nasa.gov/search/collections.json';
-      const cmrGranulesUrl = 'https://cmr.earthdata.nasa.gov/search/granules.json';
       
       // Search for ocean water quality and pollution datasets
-      const oceanDatasets = [
-        'MODIS_AQUA_L3_CHLA_DAILY_4KM', // Chlorophyll concentration (ocean health indicator)
-        'MODIS_AQUA_L3_SST_DAILY_4KM',  // Sea surface temperature
-        'VIIRS_L3_OC_DAILY',             // Ocean color (water quality indicator)
-      ];
       
-      // Get location coordinates - ここを修正
-      const locationCoords = getLocationCoordinates(selectedLocation); // selectedOceanLocation → selectedLocation
       
       // Search for ocean quality data collections
       const collectionsParams = new URLSearchParams({
@@ -2214,10 +2124,10 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         throw new Error(`CMR API error: ${collectionsResponse.status}`);
       }
       
-      const collectionsData = await collectionsResponse.json();
+      await collectionsResponse.json();
       
       // For demonstration, we'll process the data and return ocean quality metrics
-      const oceanQualityData = await processOceanQualityData(collectionsData, locationCoords);
+      const oceanQualityData = await processOceanQualityData();
       
       // Return processed ocean data
       return oceanQualityData;
@@ -2232,35 +2142,14 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
   
-  // Get coordinates for selected ocean location
-  const getLocationCoordinates = (location: string): { lat: number; lon: number } => {
-    const coordinates: Record<string, { lat: number; lon: number }> = {
-      'Pacific Ocean': { lat: 0, lon: -160 },
-      'Atlantic Ocean': { lat: 0, lon: -30 },
-      'Indian Ocean': { lat: -20, lon: 80 },
-      'Arctic Ocean': { lat: 80, lon: 0 },
-      'Southern Ocean': { lat: -60, lon: 0 },
-      'Mediterranean Sea': { lat: 35, lon: 18 },
-      'Caribbean Sea': { lat: 15, lon: -75 },
-      'Gulf of Mexico': { lat: 25, lon: -90 },
-      'Baltic Sea': { lat: 58, lon: 20 },
-      'South China Sea': { lat: 12, lon: 115 }
-    };
-    
-    return coordinates[location] || { lat: 0, lon: 0 };
-  };
   
   // Process ocean quality data from NASA CMR
-  const processOceanQualityData = async (
-    collectionsData: any,
-    locationCoords: { lat: number; lon: number }
-  ): Promise<OceanData[]> => {
+  const processOceanQualityData = async (): Promise<OceanData[]> => {
     const locations = availableLocations.filter(loc => loc !== 'all');
     const processedData: OceanData[] = [];
     
     // For each location, calculate ocean quality metrics based on available data
     for (const location of locations) {
-      const coords = getLocationCoordinates(location);
       
       // Calculate pollution index based on chlorophyll concentration and other factors
       // High chlorophyll in certain areas can indicate eutrophication (pollution)

@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface OceanArea {
+interface OceanAreaCharacteristics {
   name: string;
   jaName: string;
   characteristics: string[];
@@ -9,21 +9,27 @@ interface OceanArea {
 }
 
 interface OceanAreaSelectorProps {
-  oceanAreas: Record<string, OceanArea>;
+  oceanAreas: Record<string, OceanAreaCharacteristics>;
   currentArea: string;
   onAreaChange: (areaName: string) => void;
   language: 'ja' | 'en';
+  translations: {
+    selectOceanArea: string;
+  };
 }
 
 const OceanAreaSelector: React.FC<OceanAreaSelectorProps> = ({
   oceanAreas,
   currentArea,
   onAreaChange,
-  language
+  language,
+  translations
 }) => {
   return (
-    <div className="grid grid-cols-2 gap-2 mb-4">
-      {Object.entries(oceanAreas).map(([key, area]) => (
+    <div className="mb-4">
+      <h3 className="text-sm font-medium text-gray-700 mb-2">{translations.selectOceanArea}</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {Object.entries(oceanAreas).map(([key, area]) => (
         <button
           key={key}
           onClick={() => onAreaChange(key)}
@@ -43,6 +49,7 @@ const OceanAreaSelector: React.FC<OceanAreaSelectorProps> = ({
           </div>
         </button>
       ))}
+      </div>
     </div>
   );
 };
