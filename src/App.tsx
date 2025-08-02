@@ -166,6 +166,17 @@ interface TranslationStrings {
   noDataAvailable: string;
   allSources: string;
   allLocations: string;
+  
+  oceanArea: string;
+  selectOceanArea: string;
+  turtleGuide: string;
+  garbageCleanup: string;
+  cleanupScore: string;
+  garbageRemoved: string;
+  waterQualityImproving: string;
+  fishCommunication: string;
+  oceanFacts: string;
+  conservationTips: string;
 }
 
 interface Translations {
@@ -212,6 +223,41 @@ interface OceanData {
   pollutionIndex?: number;
   timestamp: string;
   source: 'NOAA' | 'NASA' | 'SIMULATION';
+}
+
+interface OceanAreaCharacteristics {
+  name: string;
+  jaName: string;
+  characteristics: string[];
+  pollutionLevels: number[];
+  uniqueFeatures: string[];
+  baseTemperature: number;
+  baseSalinity: number;
+  basePH: number;
+  fishTypes: string[];
+  backgroundColor: string;
+  backgroundImage?: string;
+}
+
+interface GarbageItem {
+  id: string;
+  type: 'plastic_bottle' | 'plastic_bag' | 'can' | 'fishing_net' | 'microplastic';
+  x: number;
+  y: number;
+  size: number;
+  points: number;
+  spawnRate: number;
+  environmentalImpact: 'low' | 'medium' | 'high' | 'critical';
+  clickable: boolean;
+}
+
+interface TurtleGuide {
+  x: number;
+  y: number;
+  message: string;
+  emotion: 'happy' | 'concerned' | 'excited' | 'teaching';
+  visible: boolean;
+  animation: 'idle' | 'swimming' | 'talking';
 }
 
 import { Environment } from './LandingPage.tsx';
@@ -269,6 +315,31 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [showMap, setShowMap] = useState(true); // 地図表示の状態を管理
   
+  const [currentOceanArea, setCurrentOceanArea] = useState<string>('Pacific Ocean');
+  const [garbageItems, setGarbageItems] = useState<GarbageItem[]>([]);
+  const [cleanupScore, setCleanupScore] = useState(0);
+  const [turtleGuide, setTurtleGuide] = useState<TurtleGuide>({
+    x: 100,
+    y: 100,
+    message: 'こんにちは！私はタートル博士です。一緒に海をきれいにしましょう！',
+    emotion: 'happy',
+    visible: true,
+    animation: 'idle'
+  });
+  const [fishCommunications, setFishCommunications] = useState<Array<{
+    fishId1: string;
+    fishId2: string;
+    message: string;
+    timestamp: number;
+  }>>([]);
+  const [waterQualityEffects, setWaterQualityEffects] = useState<Array<{
+    x: number;
+    y: number;
+    type: 'sparkle' | 'purification' | 'improvement';
+    intensity: number;
+    duration: number;
+  }>>([]);
+  
   // 利用可能な場所のリスト
   const availableLocations = [
     'all',
@@ -283,6 +354,99 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     'South China Sea',
     'Bering Sea'
   ];
+
+  const oceanAreas: Record<string, OceanAreaCharacteristics> = {
+    'Pacific Ocean': {
+      name: 'Pacific Ocean',
+      jaName: '太平洋',
+      characteristics: ['深海', '広大', '多様な生態系'],
+      pollutionLevels: [1, 3, 5, 7, 9],
+      uniqueFeatures: ['深海魚', '海底火山', '太平洋ゴミベルト'],
+      baseTemperature: 18,
+      baseSalinity: 34.7,
+      basePH: 8.1,
+      fishTypes: ['deep_sea', 'tuna', 'whale'],
+      backgroundColor: 'linear-gradient(to bottom, #1e3a8a 0%, #1e40af 50%, #1e3a8a 100%)',
+      backgroundImage: '/images/pacific-bg.jpg'
+    },
+    'Atlantic Ocean': {
+      name: 'Atlantic Ocean',
+      jaName: '大西洋',
+      characteristics: ['暖流寒流', '豊富な魚類', '歴史的航路'],
+      pollutionLevels: [2, 4, 6, 8],
+      uniqueFeatures: ['メキシコ湾流', 'サルガッソー海', '氷山'],
+      baseTemperature: 16,
+      baseSalinity: 35.4,
+      basePH: 8.0,
+      fishTypes: ['cod', 'herring', 'shark'],
+      backgroundColor: 'linear-gradient(to bottom, #0f766e 0%, #0d9488 50%, #0f766e 100%)',
+      backgroundImage: '/images/atlantic-bg.jpg'
+    },
+    'Indian Ocean': {
+      name: 'Indian Ocean',
+      jaName: 'インド洋',
+      characteristics: ['熱帯', 'サンゴ礁', 'モンスーン'],
+      pollutionLevels: [2, 5, 7, 9],
+      uniqueFeatures: ['マングローブ', '環礁', '紅海'],
+      baseTemperature: 26,
+      baseSalinity: 34.8,
+      basePH: 8.2,
+      fishTypes: ['tropical', 'coral_fish', 'turtle'],
+      backgroundColor: 'linear-gradient(to bottom, #0c4a6e 0%, #0284c7 50%, #0c4a6e 100%)',
+      backgroundImage: '/images/indian-bg.jpg'
+    },
+    'Coral Reef': {
+      name: 'Coral Reef',
+      jaName: 'サンゴ礁の海',
+      characteristics: ['生物多様性', '透明度', '脆弱性'],
+      pollutionLevels: [1, 4, 8],
+      uniqueFeatures: ['グレートバリアリーフ', '熱帯魚', '共生関係'],
+      baseTemperature: 28,
+      baseSalinity: 35.0,
+      basePH: 8.3,
+      fishTypes: ['clownfish', 'angelfish', 'parrotfish'],
+      backgroundColor: 'linear-gradient(to bottom, #0369a1 0%, #0ea5e9 30%, #38bdf8 70%, #0369a1 100%)',
+      backgroundImage: '/images/coral-bg.jpg'
+    }
+  };
+
+  const garbageTypes = {
+    plastic_bottle: {
+      spawnRate: 30,
+      points: 10,
+      environmentalImpact: 'high' as const,
+      size: 15,
+      color: '#3b82f6'
+    },
+    plastic_bag: {
+      spawnRate: 25,
+      points: 8,
+      environmentalImpact: 'high' as const,
+      size: 20,
+      color: '#ef4444'
+    },
+    can: {
+      spawnRate: 20,
+      points: 6,
+      environmentalImpact: 'medium' as const,
+      size: 12,
+      color: '#6b7280'
+    },
+    fishing_net: {
+      spawnRate: 10,
+      points: 20,
+      environmentalImpact: 'critical' as const,
+      size: 30,
+      color: '#059669'
+    },
+    microplastic: {
+      spawnRate: 15,
+      points: 15,
+      environmentalImpact: 'high' as const,
+      size: 8,
+      color: '#f59e0b'
+    }
+  };
 
   // クイズの質問リスト
   const allQuizQuestions: QuizQuestion[] = [
@@ -604,6 +768,16 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
     
     touchStartRef.current = { x, y };
+
+    const clickedGarbage = garbageItems.find(garbage => {
+      const distance = calculateDistance(x, y, garbage.x, garbage.y);
+      return distance < garbage.size && garbage.clickable;
+    });
+
+    if (clickedGarbage) {
+      removeGarbage(clickedGarbage.id);
+      return;
+    }
 
     // Create ripple effect with bubbles
     for (let i = 0; i < 12; i++) {
@@ -1300,6 +1474,126 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         // ... existing code ...
       });
 
+      if (turtleGuide.visible) {
+        ctx.save();
+        ctx.translate(turtleGuide.x, turtleGuide.y);
+        
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 25, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.ellipse(0, -5, 20, 15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.ellipse(-20, -10, 8, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(-23, -12, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#1f2937';
+        ctx.fillRect(-28, -20, 16, 8);
+        ctx.fillRect(-26, -22, 12, 2);
+        
+        ctx.restore();
+        
+        if (turtleGuide.message) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillRect(turtleGuide.x + 30, turtleGuide.y - 30, 200, 40);
+          ctx.strokeStyle = '#22c55e';
+          ctx.strokeRect(turtleGuide.x + 30, turtleGuide.y - 30, 200, 40);
+          
+          ctx.fillStyle = '#000';
+          ctx.font = '12px Arial';
+          ctx.fillText(turtleGuide.message.substring(0, 30), turtleGuide.x + 35, turtleGuide.y - 15);
+          if (turtleGuide.message.length > 30) {
+            ctx.fillText(turtleGuide.message.substring(30, 60), turtleGuide.x + 35, turtleGuide.y - 5);
+          }
+        }
+      }
+
+      garbageItems.forEach(garbage => {
+        ctx.save();
+        ctx.translate(garbage.x, garbage.y);
+        
+        const typeInfo = garbageTypes[garbage.type];
+        ctx.fillStyle = typeInfo.color;
+        
+        switch (garbage.type) {
+          case 'plastic_bottle':
+            ctx.fillRect(-garbage.size/2, -garbage.size, garbage.size/2, garbage.size);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-garbage.size/2 + 2, -garbage.size + 2, garbage.size/2 - 4, 4);
+            break;
+          case 'plastic_bag':
+            ctx.beginPath();
+            ctx.ellipse(0, 0, garbage.size/2, garbage.size/3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+          case 'can':
+            ctx.fillRect(-garbage.size/2, -garbage.size/2, garbage.size, garbage.size/2);
+            break;
+          case 'fishing_net':
+            ctx.strokeStyle = typeInfo.color;
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+              for (let j = 0; j < 5; j++) {
+                ctx.strokeRect(i * 6 - 12, j * 6 - 12, 6, 6);
+              }
+            }
+            break;
+          case 'microplastic':
+            for (let i = 0; i < 5; i++) {
+              ctx.beginPath();
+              ctx.arc(Math.random() * 10 - 5, Math.random() * 10 - 5, 1, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            break;
+        }
+        
+        if (garbage.clickable) {
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(-garbage.size/2 - 5, -garbage.size/2 - 5, garbage.size + 10, garbage.size + 10);
+          ctx.setLineDash([]);
+        }
+        
+        ctx.restore();
+      });
+
+      waterQualityEffects.forEach((effect, index) => {
+        ctx.save();
+        ctx.translate(effect.x, effect.y);
+        
+        if (effect.type === 'sparkle') {
+          ctx.fillStyle = `rgba(255, 215, 0, ${effect.intensity})`;
+          for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const radius = 10 * effect.intensity;
+            ctx.beginPath();
+            ctx.arc(Math.cos(angle) * radius, Math.sin(angle) * radius, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        
+        ctx.restore();
+        
+        if (effect.duration > 0) {
+          effect.duration -= 16;
+          effect.intensity *= 0.98;
+        }
+      });
+
+      setWaterQualityEffects(prev => prev.filter(effect => effect.duration > 0));
+
       // 汚染源を描画
       pollutionSources.forEach(source => {
         if (source.image) {
@@ -1412,6 +1706,105 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       
       return newSources;
     });
+  };
+
+  const changeOceanArea = (areaName: string) => {
+    setCurrentOceanArea(areaName);
+    const area = oceanAreas[areaName];
+    if (area) {
+      setTurtleGuide(prev => ({
+        ...prev,
+        message: `${area.jaName}へようこそ！${area.characteristics.join('、')}が特徴です。`,
+        emotion: 'excited'
+      }));
+      
+      generateGarbageForArea(areaName);
+    }
+  };
+
+  const generateGarbageForArea = (areaName: string) => {
+    const area = oceanAreas[areaName];
+    if (!area) return;
+
+    const newGarbage: GarbageItem[] = [];
+    const totalGarbageCount = Math.floor(Math.random() * 10) + 5;
+
+    for (let i = 0; i < totalGarbageCount; i++) {
+      const garbageTypeKeys = Object.keys(garbageTypes) as Array<keyof typeof garbageTypes>;
+      const randomType = garbageTypeKeys[Math.floor(Math.random() * garbageTypeKeys.length)];
+      const typeInfo = garbageTypes[randomType];
+
+      if (Math.random() * 100 < typeInfo.spawnRate) {
+        newGarbage.push({
+          id: `garbage-${Date.now()}-${i}`,
+          type: randomType,
+          x: Math.random() * (canvasSize.width - 50) + 25,
+          y: Math.random() * (canvasSize.height - 100) + 50,
+          size: typeInfo.size + Math.random() * 10,
+          points: typeInfo.points,
+          spawnRate: typeInfo.spawnRate,
+          environmentalImpact: typeInfo.environmentalImpact,
+          clickable: true
+        });
+      }
+    }
+
+    setGarbageItems(newGarbage);
+  };
+
+  const removeGarbage = (garbageId: string) => {
+    setGarbageItems(prev => {
+      const garbageToRemove = prev.find(g => g.id === garbageId);
+      if (!garbageToRemove) return prev;
+
+      setCleanupScore(prevScore => prevScore + garbageToRemove.points);
+
+      setPollutionLevel(prevLevel => Math.max(0, prevLevel - 0.5));
+
+      setWaterQualityEffects(prevEffects => [
+        ...prevEffects,
+        {
+          x: garbageToRemove.x,
+          y: garbageToRemove.y,
+          type: 'sparkle',
+          intensity: garbageToRemove.points / 10,
+          duration: 2000
+        }
+      ]);
+
+      setTurtleGuide(prevTurtle => ({
+        ...prevTurtle,
+        message: `よくできました！${garbageToRemove.points}ポイント獲得です！`,
+        emotion: 'happy'
+      }));
+
+      return prev.filter(g => g.id !== garbageId);
+    });
+  };
+
+  const handleFishCommunication = (fish1: Fish, fish2: Fish) => {
+    const distance = calculateDistance(fish1.x, fish1.y, fish2.x, fish2.y);
+    if (distance < 50) {
+      const messages = [
+        '海がきれいになってきたね！',
+        '一緒に泳ごう！',
+        'この海域はどう？',
+        '友達になりませんか？',
+        '協力してゴミを見つけよう！'
+      ];
+      
+      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+      
+      setFishCommunications(prev => [
+        ...prev.slice(-4), // 最新5件のみ保持
+        {
+          fishId1: `fish-${fish1.x}-${fish1.y}`,
+          fishId2: `fish-${fish2.x}-${fish2.y}`,
+          message: randomMessage,
+          timestamp: Date.now()
+        }
+      ]);
+    }
   };
 
   // 汚染源の画像を読み込む
@@ -1615,6 +2008,18 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       noDataAvailable: "利用可能なデータがありません",
       allSources: "すべてのソース",
       allLocations: "すべての場所",
+      
+      oceanArea: "海域",
+      selectOceanArea: "海域を選択",
+      turtleGuide: "タートル博士",
+      garbageCleanup: "ゴミ清掃",
+      cleanupScore: "清掃スコア",
+      garbageRemoved: "ゴミを除去しました！",
+      waterQualityImproving: "水質が改善されています",
+      fishCommunication: "魚の会話",
+      clickGarbageToClean: "ゴミをクリックして清掃しよう！",
+      oceanFacts: "海洋の豆知識",
+      conservationTips: "保護のヒント",
     },
     en: {
       // Buttons
@@ -1683,6 +2088,18 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       noDataAvailable: "No data available",
       allSources: "All Sources",
       allLocations: "All Locations",
+      
+      oceanArea: "Ocean Area",
+      selectOceanArea: "Select Ocean Area",
+      turtleGuide: "Dr. Turtle",
+      garbageCleanup: "Garbage Cleanup",
+      cleanupScore: "Cleanup Score",
+      garbageRemoved: "Garbage removed!",
+      waterQualityImproving: "Water quality improving",
+      fishCommunication: "Fish Communication",
+      clickGarbageToClean: "Click on garbage to clean it up!",
+      oceanFacts: "Ocean Facts",
+      conservationTips: "Conservation Tips",
     }
   };
 
@@ -1991,6 +2408,32 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    generateGarbageForArea(currentOceanArea);
+  }, [currentOceanArea, canvasSize]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTurtleGuide(prev => ({
+        ...prev,
+        x: Math.max(50, Math.min(canvasSize.width - 50, prev.x + (Math.random() - 0.5) * 20)),
+        y: Math.max(50, Math.min(canvasSize.height - 50, prev.y + (Math.random() - 0.5) * 20))
+      }));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [canvasSize]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFishCommunications(prev => 
+        prev.filter(comm => Date.now() - comm.timestamp < 10000)
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
   
   // 選択されたデータソースと場所に基づいてデータをフィルタリングする関数
   const getFilteredOceanData = () => {
@@ -2085,6 +2528,65 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
             />
           </div>
           
+          {/* 海域選択 */}
+          <div className="mb-4 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t('selectOceanArea')}
+            </label>
+            <select
+              value={currentOceanArea}
+              onChange={(e) => changeOceanArea(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              {Object.entries(oceanAreas).map(([key, area]) => (
+                <option key={key} value={key}>
+                  {language === 'ja' ? area.jaName : area.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 清掃スコア表示 */}
+          <div className="mb-4 p-3 bg-green-50 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-green-800">
+                {t('cleanupScore')}
+              </span>
+              <span className="text-lg font-bold text-green-600">
+                {cleanupScore}
+              </span>
+            </div>
+            <div className="mt-2 text-xs text-green-600">
+              {t('clickGarbageToClean')}
+            </div>
+          </div>
+
+          {/* タートル博士の情報 */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg shadow-md">
+            <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
+              🐢 {t('turtleGuide')}
+            </h4>
+            <p className="text-xs text-blue-600">
+              {turtleGuide.message}
+            </p>
+          </div>
+
+          {/* 魚のコミュニケーション履歴 */}
+          {fishCommunications.length > 0 && (
+            <div className="mb-4 p-3 bg-yellow-50 rounded-lg shadow-md">
+              <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                {t('fishCommunication')}
+              </h4>
+              <div className="space-y-1">
+                {fishCommunications.slice(-3).map((comm, index) => (
+                  <p key={index} className="text-xs text-yellow-600">
+                    🐟 {comm.message}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">
             <div className="flex items-center gap-1">
               <button
