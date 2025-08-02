@@ -1,9 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2 } from 'lucide-react';
 import OceanMap from './components/OceanMap';
+import GarbageCleanupUI from './components/GarbageCleanupUI';
+import TurtleGuide from './components/TurtleGuide';
+import OceanAreaSelector from './components/OceanAreaSelector';
 import { NASA_API_KEY } from './constants/apiKeys';
 
 interface Fish {
+  id: string;
   x: number;
   y: number;
   direction: number;
@@ -166,6 +170,7 @@ interface TranslationStrings {
   noDataAvailable: string;
   allSources: string;
   allLocations: string;
+  clickGarbageToClean: string;
   
   oceanArea: string;
   selectOceanArea: string;
@@ -184,9 +189,6 @@ interface Translations {
   en: TranslationStrings;
 }
 
-function easeInOutQuad(t: number): number {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
 
 function normalizeAngle(angle: number): number {
   while (angle > Math.PI) angle -= Math.PI * 2;
@@ -194,12 +196,6 @@ function normalizeAngle(angle: number): number {
   return angle;
 }
 
-function calculateVector(x1: number, y1: number, x2: number, y2: number) {
-  return {
-    x: x2 - x1,
-    y: y2 - y1
-  };
-}
 
 function calculateDistance(x1: number, y1: number, x2: number, y2: number) {
   const dx = x2 - x1;
@@ -207,10 +203,6 @@ function calculateDistance(x1: number, y1: number, x2: number, y2: number) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function normalizeVector(vector: { x: number; y: number }) {
-  const length = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-  return length > 0 ? { x: vector.x / length, y: vector.y / length } : { x: 0, y: 0 };
-}
 
 // 海洋データのインターフェース
 interface OceanData {
@@ -269,7 +261,6 @@ interface AppProps {
 const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const fishesRef = useRef<Fish[]>([]);
   const bubblesRef = useRef<Bubble[]>([]);
@@ -277,7 +268,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const [deadFishCount, setDeadFishCount] = useState(0);
   const [fishTypes, setFishTypes] = useState<FishType[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
@@ -958,6 +948,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                                   type.speciesType === 'crab' ? 0.3 : 0.2;
         
         fishesRef.current.push({
+          id: `fish-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           x: Math.random() * canvasSize.width,
           y: 100 + Math.random() * (canvasSize.height - 200),
           direction: direction,
@@ -1585,14 +1576,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         }
         
         ctx.restore();
-        
-        if (effect.duration > 0) {
-          effect.duration -= 16;
-          effect.intensity *= 0.98;
-        }
       });
-
-      setWaterQualityEffects(prev => prev.filter(effect => effect.duration > 0));
 
       // 汚染源を描画
       pollutionSources.forEach(source => {
@@ -1753,44 +1737,38 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   };
 
   const removeGarbage = (garbageId: string) => {
-    setGarbageItems(prev => {
-      const garbageToRemove = prev.find(g => g.id === garbageId);
-      if (!garbageToRemove) return prev;
+    const garbageToRemove = garbageItems.find(g => g.id === garbageId);
+    if (!garbageToRemove) return;
 
-      setCleanupScore(prevScore => prevScore + garbageToRemove.points);
-
-      setPollutionLevel(prevLevel => Math.max(0, prevLevel - 0.5));
-
-      setWaterQualityEffects(prevEffects => [
-        ...prevEffects,
-        {
-          x: garbageToRemove.x,
-          y: garbageToRemove.y,
-          type: 'sparkle',
-          intensity: garbageToRemove.points / 10,
-          duration: 2000
-        }
-      ]);
-
-      setTurtleGuide(prevTurtle => ({
-        ...prevTurtle,
-        message: `よくできました！${garbageToRemove.points}ポイント獲得です！`,
-        emotion: 'happy'
-      }));
-
-      return prev.filter(g => g.id !== garbageId);
-    });
+    setGarbageItems(prev => prev.filter(g => g.id !== garbageId));
+    setCleanupScore(prevScore => prevScore + garbageToRemove.points);
+    setPollutionLevel(prevLevel => Math.max(0, prevLevel - 0.5));
+    setWaterQualityEffects(prevEffects => [
+      ...prevEffects,
+      {
+        x: garbageToRemove.x,
+        y: garbageToRemove.y,
+        type: 'sparkle',
+        intensity: garbageToRemove.points / 10,
+        duration: 2000
+      }
+    ]);
+    setTurtleGuide(prevTurtle => ({
+      ...prevTurtle,
+      message: `よくできました！${garbageToRemove.points}ポイント獲得です！`,
+      emotion: 'happy'
+    }));
   };
 
   const handleFishCommunication = (fish1: Fish, fish2: Fish) => {
     const distance = calculateDistance(fish1.x, fish1.y, fish2.x, fish2.y);
     if (distance < 50) {
       const messages = [
-        '海がきれいになってきたね！',
-        '一緒に泳ごう！',
-        'この海域はどう？',
-        '友達になりませんか？',
-        '協力してゴミを見つけよう！'
+        language === 'ja' ? '海がきれいになってきたね！' : 'The ocean is getting cleaner!',
+        language === 'ja' ? '一緒に泳ごう！' : 'Let\'s swim together!',
+        language === 'ja' ? 'この海域はどう？' : 'How is this ocean area?',
+        language === 'ja' ? '友達になりませんか？' : 'Would you like to be friends?',
+        language === 'ja' ? '協力してゴミを見つけよう！' : 'Let\'s work together to find garbage!'
       ];
       
       const randomMessage = messages[Math.floor(Math.random() * messages.length)];
@@ -1798,8 +1776,8 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       setFishCommunications(prev => [
         ...prev.slice(-4), // 最新5件のみ保持
         {
-          fishId1: `fish-${fish1.x}-${fish1.y}`,
-          fishId2: `fish-${fish2.x}-${fish2.y}`,
+          fishId1: fish1.id,
+          fishId2: fish2.id,
           message: randomMessage,
           timestamp: Date.now()
         }
@@ -1873,6 +1851,19 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     
     return () => clearInterval(interval);
   }, [pollutionSources]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setWaterQualityEffects(prev => 
+        prev.map(effect => ({
+          ...effect,
+          duration: effect.duration - 16,
+          intensity: effect.intensity * 0.98
+        })).filter(effect => effect.duration > 0)
+      );
+    }, 16);
+    return () => clearInterval(interval);
+  }, []);
 
   // 汚染レベルに応じた教育的な情報を取得する関数
   const getEducationalInfo = () => {
@@ -2471,6 +2462,16 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         className="absolute top-0 left-0 w-full h-full"
       />
       
+      {/* タートル博士オーバーレイ */}
+      <TurtleGuide
+        x={turtleGuide.x}
+        y={turtleGuide.y}
+        message={turtleGuide.message}
+        emotion={turtleGuide.emotion}
+        visible={turtleGuide.visible}
+        animation={turtleGuide.animation}
+      />
+      
       {/* パネル開閉ボタン */}
       <div className="absolute top-2 left-2 z-20">
         <button
@@ -2529,47 +2530,36 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
           </div>
           
           {/* 海域選択 */}
-          <div className="mb-4 bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-md">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('selectOceanArea')}
-            </label>
-            <select
-              value={currentOceanArea}
-              onChange={(e) => changeOceanArea(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            >
-              {Object.entries(oceanAreas).map(([key, area]) => (
-                <option key={key} value={key}>
-                  {language === 'ja' ? area.jaName : area.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <OceanAreaSelector
+            currentArea={currentOceanArea}
+            oceanAreas={oceanAreas}
+            language={language}
+            onAreaChange={changeOceanArea}
+            translations={{
+              selectOceanArea: t('selectOceanArea')
+            }}
+          />
 
           {/* 清掃スコア表示 */}
-          <div className="mb-4 p-3 bg-green-50 rounded-lg shadow-md">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-green-800">
-                {t('cleanupScore')}
-              </span>
-              <span className="text-lg font-bold text-green-600">
-                {cleanupScore}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-green-600">
-              {t('clickGarbageToClean')}
-            </div>
-          </div>
+          <GarbageCleanupUI 
+            score={cleanupScore}
+            garbageCount={garbageItems.length}
+            translations={{
+              cleanupScore: t('cleanupScore'),
+              garbageRemaining: t('garbageRemaining'),
+              clickToClean: t('clickGarbageToClean')
+            }}
+          />
 
           {/* タートル博士の情報 */}
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg shadow-md">
-            <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-              🐢 {t('turtleGuide')}
-            </h4>
-            <p className="text-xs text-blue-600">
-              {turtleGuide.message}
-            </p>
-          </div>
+          <TurtleGuide
+            x={turtleGuide.x}
+            y={turtleGuide.y}
+            message={turtleGuide.message}
+            emotion={turtleGuide.emotion}
+            visible={turtleGuide.visible}
+            animation={turtleGuide.animation}
+          />
 
           {/* 魚のコミュニケーション履歴 */}
           {fishCommunications.length > 0 && (

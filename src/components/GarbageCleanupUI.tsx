@@ -3,28 +3,18 @@ import React from 'react';
 interface GarbageCleanupUIProps {
   score: number;
   garbageCount: number;
-  language: 'ja' | 'en';
+  translations: {
+    cleanupScore: string;
+    garbageRemaining: string;
+    clickToClean: string;
+  };
 }
 
 const GarbageCleanupUI: React.FC<GarbageCleanupUIProps> = ({
   score,
   garbageCount,
-  language
+  translations: t
 }) => {
-  const translations = {
-    ja: {
-      cleanupScore: '清掃スコア',
-      garbageRemaining: '残りのゴミ',
-      clickToClean: 'ゴミをクリックして清掃しよう！'
-    },
-    en: {
-      cleanupScore: 'Cleanup Score',
-      garbageRemaining: 'Garbage Remaining',
-      clickToClean: 'Click on garbage to clean it up!'
-    }
-  };
-
-  const t = translations[language];
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
