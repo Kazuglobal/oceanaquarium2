@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './LandingPage.css';
-import { Fish, Leaf, Sun, Rocket, Sparkles, Menu, X, ChevronDown, Star, Users, Shield, Heart } from 'lucide-react';
+import { Fish, Leaf, Sun, Rocket, Sparkles, Menu, X, ChevronDown, Star, Users, Shield, Heart, Play } from 'lucide-react';
 import FireworksLobby from './components/FireworksLobby';
 
 export type Environment = 'ocean' | 'nature' | 'sky' | 'space' | 'fireworks';
@@ -56,6 +56,8 @@ const envs: {
 const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -201,22 +203,36 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
           </p>
           
           <div className="max-w-4xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl" style={{ paddingBottom: '56.25%' }}>
-              {/* YouTube Embed - Replace YOUR_VIDEO_ID with actual YouTube video ID */}
-              <iframe
-                className="absolute top-0 left-0 w-full h-full"
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
-                title="Ocean Adventure Demo"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-            
-            {/* Alternative: Use a placeholder with note about video */}
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <p>※ デモ動画をご覧いただくには、上記のプレイヤーをクリックしてください。</p>
-              <p className="mt-2">動画が表示されない場合は、<a href="#" className="text-blue-600 hover:underline">こちら</a>から直接ご覧ください。</p>
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
+              <video 
+                ref={videoRef}
+                className="w-full h-auto"
+                controls
+                poster="/api/placeholder/1280/720"
+                preload="metadata"
+                onPlay={() => setIsVideoPlaying(true)}
+                onPause={() => setIsVideoPlaying(false)}
+                onEnded={() => setIsVideoPlaying(false)}
+              >
+                <source src="/videos/demo-video.mp4" type="video/mp4" />
+                お使いのブラウザは動画タグをサポートしていません。
+              </video>
+              
+              {/* Play button overlay - only show when video is not playing */}
+              {!isVideoPlaying && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity duration-300 cursor-pointer hover:bg-black/30"
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.play();
+                    }
+                  }}
+                >
+                  <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110">
+                    <Play className="w-10 h-10 text-purple-600 ml-1" fill="currentColor" />
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Video Features */}

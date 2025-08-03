@@ -31,3 +31,9 @@ dist-ssr
 .env.test.local
 .env.production.local
 .vercel
+
+# Large media files
+public/videos/demo-video.mp4
+public/videos/*.mp4
+public/videos/*.webm
+public/videos/*.mov
