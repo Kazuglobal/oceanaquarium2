@@ -76,6 +76,7 @@ interface Bubble {
   speed: number;
   wobbleOffset: number;
   wobbleSpeed: number;
+  color?: string; // Optional color for special bubbles
 }
 
 // 汚染源のインターフェース
@@ -495,7 +496,55 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   };
 
   const cleanOcean = () => {
-    setPollutionLevel(prev => Math.max(0, prev - 1));
+    setPollutionLevel(prev => {
+      const newLevel = Math.max(0, prev - 1);
+      
+      // 泡を減らす
+      if (newLevel < prev) {
+        // 汚染レベルが下がるごとに泡の30%を削除
+        bubblesRef.current = bubblesRef.current.filter(() => Math.random() > 0.3);
+      }
+      
+      // 完全にきれいになったら全ての泡を消す
+      if (newLevel === 0) {
+        bubblesRef.current = [];
+      }
+      
+      // 魚の復活処理
+      if (newLevel <= 3) { // 汚染レベルが3以下になったら復活開始
+        let revivedCount = 0;
+        fishesRef.current.forEach(fish => {
+          if (fish.opacity <= 0.01) { // 死んでいる魚
+            // 復活させる
+            fish.opacity = 1;
+            fish.healthLevel = 1;
+            fish.isDying = false;
+            fish.deathTimer = 0;
+            revivedCount++;
+            
+            // 復活エフェクト用の泡を追加
+            for (let i = 0; i < 10; i++) {
+              bubblesRef.current.push({
+                x: fish.x + (Math.random() - 0.5) * 40,
+                y: fish.y + fish.yOffset,
+                size: 3 + Math.random() * 5,
+                speed: 2 + Math.random() * 2,
+                wobbleSpeed: 0.05,
+                wobbleOffset: Math.random() * Math.PI * 2,
+                color: 'rgba(100, 255, 100, 0.8)' // 緑色の復活泡
+              });
+            }
+          }
+        });
+        
+        // 死んだ魚カウントを更新
+        if (revivedCount > 0) {
+          setDeadFishCount(prev => Math.max(0, prev - revivedCount));
+        }
+      }
+      
+      return newLevel;
+    });
   };
 
   const removeBackground = (img: HTMLImageElement): Promise<HTMLImageElement> => {
@@ -928,9 +977,27 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
           bubble.x, bubble.y, 0,
           bubble.x, bubble.y, bubble.size
         );
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        if (bubble.color) {
+          // Use custom color for special bubbles
+          const colorMatch = bubble.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)/);
+          if (colorMatch) {
+            const [_, r, g, b, a = '0.8'] = colorMatch;
+            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${a})`);
+            gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${parseFloat(a) * 0.375})`);
+            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+          } else {
+            // Fallback to default
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          }
+        } else {
+          // Default white bubbles
+          gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+          gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+          gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        }
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
