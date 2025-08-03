@@ -272,7 +272,6 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   
   // リアルタイム海洋データモード関連の状態
   const [realTimePollutionMode, setRealTimePollutionMode] = useState(false);
-  const [selectedOceanLocation, setSelectedOceanLocation] = useState<string>('Pacific Ocean');
   
   // 利用可能な場所のリスト
   const availableLocations = [
@@ -2090,8 +2089,10 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const updatePollutionFromOceanData = () => {
     if (!realTimePollutionMode) return;
     
+    // selectedLocationが'all'の場合はデフォルトで'Pacific Ocean'を使用
+    const targetLocation = selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation;
     const currentLocationData = getFilteredOceanData().find(
-      data => data.location === selectedOceanLocation
+      data => data.location === targetLocation
     );
     
     if (currentLocationData?.pollutionIndex !== undefined) {
@@ -2105,8 +2106,10 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const adjustFishPopulationBasedOnOceanHealth = () => {
     if (!realTimePollutionMode) return;
     
+    // selectedLocationが'all'の場合はデフォルトで'Pacific Ocean'を使用
+    const targetLocation = selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation;
     const currentLocationData = getFilteredOceanData().find(
-      data => data.location === selectedOceanLocation
+      data => data.location === targetLocation
     );
     
     if (currentLocationData) {
@@ -2198,7 +2201,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       updatePollutionFromOceanData();
       adjustFishPopulationBasedOnOceanHealth();
     }
-  }, [oceanData, realTimePollutionMode, selectedOceanLocation]);
+  }, [oceanData, realTimePollutionMode, selectedLocation]);
   
   // リアルタイムモード時の定期更新
   useEffect(() => {
@@ -2212,7 +2215,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }, 60000); // 1分ごと
     
     return () => clearInterval(interval);
-  }, [realTimePollutionMode, selectedOceanLocation]);
+  }, [realTimePollutionMode, selectedLocation]);
   
   // 選択されたデータソースと場所に基づいてデータをフィルタリングする関数
   const getFilteredOceanData = () => {
@@ -2252,8 +2255,10 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       
       {/* 海洋健康インジケーター */}
       {realTimePollutionMode && (() => {
+        // selectedLocationが'all'の場合はデフォルトで'Pacific Ocean'を使用
+        const targetLocation = selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation;
         const currentData = getFilteredOceanData().find(
-          data => data.location === selectedOceanLocation
+          data => data.location === targetLocation
         );
         
         if (!currentData) return null;
@@ -2262,7 +2267,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         
         return (
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg z-10 min-w-[280px]">
-            <h4 className="font-semibold text-sm mb-2 text-center text-blue-800">{selectedOceanLocation}</h4>
+            <h4 className="font-semibold text-sm mb-2 text-center text-blue-800">{targetLocation}</h4>
             <div className="flex items-center space-x-3 mb-2">
               <span className="text-xs font-medium text-gray-600">海洋健康度:</span>
               <div className="flex-1 bg-gray-200 rounded-full h-3">
@@ -2366,6 +2371,14 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               onLocationSelect={(location) => {
                 console.log(`Location selected from map: ${location}`);
                 setSelectedLocation(location);
+                
+                // リアルタイムモードがONの場合、即座にデータを更新
+                if (realTimePollutionMode) {
+                  setTimeout(() => {
+                    updatePollutionFromOceanData();
+                    adjustFishPopulationBasedOnOceanHealth();
+                  }, 100);
+                }
               }}
               availableLocations={availableLocations.filter(loc => loc !== 'all')}
               showMap={showMap}
@@ -2510,11 +2523,18 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
             {realTimePollutionMode && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  監視対象海域
+                  監視対象海域 (MAP連携)
                 </label>
                 <select 
-                  value={selectedOceanLocation}
-                  onChange={(e) => setSelectedOceanLocation(e.target.value)}
+                  value={selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation}
+                  onChange={(e) => {
+                    setSelectedLocation(e.target.value);
+                    // 選択変更時に即座にデータを更新
+                    setTimeout(() => {
+                      updatePollutionFromOceanData();
+                      adjustFishPopulationBasedOnOceanHealth();
+                    }, 100);
+                  }}
                   className="w-full p-2 border border-gray-300 rounded text-sm"
                 >
                   {availableLocations.filter(loc => loc !== 'all').map(location => (
@@ -2522,7 +2542,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                   ))}
                 </select>
                 <p className="text-xs text-gray-600 mt-1">
-                  選択した海域の実際のデータで魚の生態系が制御されます
+                  下の地図をクリックまたは上記で選択して海域を変更できます
                 </p>
               </div>
             )}
