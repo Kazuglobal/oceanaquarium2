@@ -214,6 +214,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
                 onPause={() => setIsVideoPlaying(false)}
                 onEnded={() => setIsVideoPlaying(false)}
               >
+                <source src="/videos/demo-video.mov" type="video/quicktime" />
                 <source src="/videos/demo-video.mp4" type="video/mp4" />
                 お使いのブラウザは動画タグをサポートしていません。
               </video>
