@@ -270,6 +270,10 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [showMap, setShowMap] = useState(true); // 地図表示の状態を管理
   
+  // リアルタイム海洋データモード関連の状態
+  const [realTimePollutionMode, setRealTimePollutionMode] = useState(false);
+  const [selectedOceanLocation, setSelectedOceanLocation] = useState<string>('Pacific Ocean');
+  
   // 利用可能な場所のリスト
   const availableLocations = [
     'all',
@@ -1985,6 +1989,41 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     return basePH + (Math.random() * 0.1 - 0.05);
   };
   
+  // 海洋データの複合健康指標を計算する関数
+  const calculateOceanHealth = (data: OceanData): number => {
+    let healthScore = 10;
+    
+    // 汚染指数の影響 (0-10, 10が最悪)
+    if (data.pollutionIndex !== undefined) {
+      healthScore -= data.pollutionIndex;
+    }
+    
+    // 溶存酸素の影響 (7+ が良好)
+    if (data.dissolvedOxygen !== undefined) {
+      healthScore += Math.max(0, (data.dissolvedOxygen - 7) * 2);
+    }
+    
+    // 水温の影響（極端な温度は悪影響）
+    const idealTemp = 18;
+    const tempDeviation = Math.abs(data.temperature - idealTemp);
+    healthScore -= tempDeviation * 0.2;
+    
+    // pH値の影響（8.1付近が理想的）
+    if (data.ph !== undefined) {
+      const phDeviation = Math.abs(data.ph - 8.1);
+      healthScore -= phDeviation * 2;
+    }
+    
+    // クロロフィル濃度の影響（適度な値が良好）
+    if (data.chlorophyll !== undefined) {
+      const optimalChlorophyll = 1.0;
+      const chlorophyllDeviation = Math.abs(data.chlorophyll - optimalChlorophyll);
+      healthScore -= chlorophyllDeviation * 0.5;
+    }
+    
+    return Math.max(0, Math.min(10, healthScore));
+  };
+  
   // シミュレーションデータを生成する関数
   const generateSimulatedOceanData = (source: 'NOAA' | 'NASA'): OceanData[] => {
     const locations = availableLocations.filter(loc => loc !== 'all');
@@ -2047,6 +2086,100 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
   
+  // 海洋データの汚染指数を内部汚染レベルに同期する関数
+  const updatePollutionFromOceanData = () => {
+    if (!realTimePollutionMode) return;
+    
+    const currentLocationData = getFilteredOceanData().find(
+      data => data.location === selectedOceanLocation
+    );
+    
+    if (currentLocationData?.pollutionIndex !== undefined) {
+      // pollutionIndex (0-10) を内部のpollutionLevelに同期
+      const newPollutionLevel = Math.round(Math.max(0, Math.min(10, currentLocationData.pollutionIndex)));
+      setPollutionLevel(newPollutionLevel);
+    }
+  };
+  
+  // 海洋健康度に基づく魚の数調整機能
+  const adjustFishPopulationBasedOnOceanHealth = () => {
+    if (!realTimePollutionMode) return;
+    
+    const currentLocationData = getFilteredOceanData().find(
+      data => data.location === selectedOceanLocation
+    );
+    
+    if (currentLocationData) {
+      const oceanHealth = calculateOceanHealth(currentLocationData);
+      const healthRatio = oceanHealth / 10;
+      const targetFishCount = Math.floor(healthRatio * 20); // 最大20匹
+      
+      // 現在の生きている魚の数
+      const aliveFishCount = fishesRef.current.filter(fish => fish.opacity > 0.1).length;
+      
+      if (aliveFishCount < targetFishCount) {
+        // 魚を復活または追加
+        addFishBasedOnHealth(targetFishCount - aliveFishCount, oceanHealth);
+      } else if (aliveFishCount > targetFishCount && oceanHealth < 5) {
+        // 海洋健康度が低い場合のみ、魚を段階的に弱らせる
+        weakenExcessFish(aliveFishCount - targetFishCount, oceanHealth);
+      }
+    }
+  };
+  
+  // 海洋健康度に基づいて魚を追加する関数
+  const addFishBasedOnHealth = (count: number, oceanHealth: number) => {
+    const fishes = fishesRef.current;
+    const deadFish = fishes.filter(fish => fish.opacity <= 0.1);
+    
+    // 死んだ魚を優先的に復活させる
+    const fishToRevive = Math.min(count, deadFish.length);
+    for (let i = 0; i < fishToRevive; i++) {
+      const fish = deadFish[i];
+      fish.opacity = 1;
+      fish.healthLevel = Math.min(1, oceanHealth / 10);
+      fish.isDying = false;
+      fish.deathTimer = 0;
+      
+      // 復活エフェクト
+      for (let j = 0; j < 8; j++) {
+        bubblesRef.current.push({
+          x: fish.x + (Math.random() - 0.5) * 40,
+          y: fish.y + fish.yOffset,
+          size: 3 + Math.random() * 4,
+          speed: 2 + Math.random() * 2,
+          wobbleSpeed: 0.05,
+          wobbleOffset: Math.random() * Math.PI * 2,
+          color: 'rgba(100, 255, 100, 0.8)' // 緑色の復活泡
+        });
+      }
+    }
+    
+    // 死んだ魚カウントを更新
+    setDeadFishCount(prev => Math.max(0, prev - fishToRevive));
+  };
+  
+  // 過剰な魚を弱らせる関数
+  const weakenExcessFish = (excessCount: number, oceanHealth: number) => {
+    const aliveFish = fishesRef.current.filter(fish => fish.opacity > 0.1 && !fish.isDying);
+    const fishToWeaken = Math.min(excessCount, aliveFish.length);
+    
+    for (let i = 0; i < fishToWeaken; i++) {
+      const fish = aliveFish[i];
+      if (oceanHealth < 3) {
+        // 非常に悪い環境では急速に弱らせる
+        fish.healthLevel = Math.max(0, fish.healthLevel - 0.3);
+        if (fish.healthLevel < 0.5) {
+          fish.isDying = true;
+          fish.deathTimer = 30 + Math.floor(Math.random() * 50);
+        }
+      } else {
+        // やや悪い環境では徐々に弱らせる
+        fish.healthLevel = Math.max(0, fish.healthLevel - 0.1);
+      }
+    }
+  };
+  
   // コンポーネントマウント時に海洋データを取得
   useEffect(() => {
     fetchOceanData();
@@ -2058,6 +2191,28 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     
     return () => clearInterval(interval);
   }, []);
+  
+  // リアルタイムモードでの海洋データと魚の状態同期
+  useEffect(() => {
+    if (realTimePollutionMode) {
+      updatePollutionFromOceanData();
+      adjustFishPopulationBasedOnOceanHealth();
+    }
+  }, [oceanData, realTimePollutionMode, selectedOceanLocation]);
+  
+  // リアルタイムモード時の定期更新
+  useEffect(() => {
+    if (!realTimePollutionMode) return;
+    
+    const interval = setInterval(() => {
+      fetchOceanData().then(() => {
+        updatePollutionFromOceanData();
+        adjustFishPopulationBasedOnOceanHealth();
+      });
+    }, 60000); // 1分ごと
+    
+    return () => clearInterval(interval);
+  }, [realTimePollutionMode, selectedOceanLocation]);
   
   // 選択されたデータソースと場所に基づいてデータをフィルタリングする関数
   const getFilteredOceanData = () => {
@@ -2094,6 +2249,72 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         onTouchEnd={handleTouchEnd}
         className="absolute top-0 left-0 w-full h-full"
       />
+      
+      {/* 海洋健康インジケーター */}
+      {realTimePollutionMode && (() => {
+        const currentData = getFilteredOceanData().find(
+          data => data.location === selectedOceanLocation
+        );
+        
+        if (!currentData) return null;
+        
+        const health = calculateOceanHealth(currentData);
+        
+        return (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg z-10 min-w-[280px]">
+            <h4 className="font-semibold text-sm mb-2 text-center text-blue-800">{selectedOceanLocation}</h4>
+            <div className="flex items-center space-x-3 mb-2">
+              <span className="text-xs font-medium text-gray-600">海洋健康度:</span>
+              <div className="flex-1 bg-gray-200 rounded-full h-3">
+                <div 
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    health > 7 ? 'bg-green-500' : 
+                    health > 4 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${health * 10}%` }}
+                />
+              </div>
+              <span className="text-xs font-bold">{health.toFixed(1)}/10</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-600">汚染指数:</span>
+                <span className={`font-medium ${
+                  (currentData.pollutionIndex || 0) > 7 ? 'text-red-600' : 
+                  (currentData.pollutionIndex || 0) > 4 ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  {currentData.pollutionIndex?.toFixed(1) || 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">水温:</span>
+                <span className="font-medium">{currentData.temperature.toFixed(1)}°C</span>
+              </div>
+              {currentData.dissolvedOxygen && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">溶存酸素:</span>
+                  <span className="font-medium">{currentData.dissolvedOxygen.toFixed(1)} mg/L</span>
+                </div>
+              )}
+              {currentData.ph && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">pH:</span>
+                  <span className="font-medium">{currentData.ph.toFixed(1)}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-2 text-center">
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                health > 7 ? 'bg-green-100 text-green-800' :
+                health > 4 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {health > 7 ? '健康' : health > 4 ? '注意' : '危険'}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
       
       {/* パネル開閉ボタン */}
       <div className="absolute top-2 left-2 z-20">
@@ -2272,6 +2493,39 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               <X size={18} />
               </button>
             </div>
+          </div>
+          
+          {/* リアルタイム海洋データモード制御 */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <label className="flex items-center space-x-2 mb-3">
+              <input 
+                type="checkbox" 
+                checked={realTimePollutionMode}
+                onChange={(e) => setRealTimePollutionMode(e.target.checked)}
+                className="rounded text-blue-600"
+              />
+              <span className="text-sm font-medium text-blue-800">リアルタイム海洋データモード</span>
+            </label>
+            
+            {realTimePollutionMode && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  監視対象海域
+                </label>
+                <select 
+                  value={selectedOceanLocation}
+                  onChange={(e) => setSelectedOceanLocation(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-sm"
+                >
+                  {availableLocations.filter(loc => loc !== 'all').map(location => (
+                    <option key={location} value={location}>{location}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-600 mt-1">
+                  選択した海域の実際のデータで魚の生態系が制御されます
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="mb-4 grid grid-cols-2 gap-2">
