@@ -273,6 +273,85 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   // リアルタイム海洋データモード関連の状態
   const [realTimePollutionMode, setRealTimePollutionMode] = useState(false);
   
+  // 背景削除のプレビューと設定
+  const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
+  const [backgroundRemovalSettings, setBackgroundRemovalSettings] = useState<BackgroundRemovalOptions>({
+    tolerance: 35,
+    multiSample: true,
+    edgeProtection: true,
+    morphology: true,
+    antiAlias: true,
+    showPreview: false,
+    previewMode: 'result',
+    fastMode: true, // デフォルトで高速モード
+    maxSize: 800,
+    detectionMode: 'auto' // 自動検出モード
+  });
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [processedPreview, setProcessedPreview] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // プリセット設定
+  const backgroundRemovalPresets = {
+    fast: {
+      tolerance: 40,
+      multiSample: false,
+      edgeProtection: false,
+      morphology: false,
+      antiAlias: false,
+      fastMode: true,
+      maxSize: 500,
+      detectionMode: 'auto' as BackgroundDetectionMode
+    },
+    white: {
+      tolerance: 25,
+      multiSample: true,
+      edgeProtection: true,
+      morphology: true,
+      antiAlias: true,
+      fastMode: false,
+      maxSize: 1000,
+      detectionMode: 'white' as BackgroundDetectionMode
+    },
+    beige: {
+      tolerance: 35,
+      multiSample: true,
+      edgeProtection: true,
+      morphology: true,
+      antiAlias: true,
+      fastMode: false,
+      maxSize: 1000,
+      detectionMode: 'beige' as BackgroundDetectionMode
+    },
+    ultra: {
+      tolerance: 30,
+      multiSample: false,
+      edgeProtection: false,
+      morphology: false,
+      antiAlias: false,
+      fastMode: true,
+      maxSize: 800,
+      detectionMode: 'ultra' as BackgroundDetectionMode
+    },
+    complex: {
+      tolerance: 50,
+      multiSample: true,
+      edgeProtection: true,
+      morphology: true,
+      antiAlias: true,
+      fastMode: false,
+      maxSize: 1200,
+      detectionMode: 'manual' as BackgroundDetectionMode
+    }
+  };
+
+  const applyPreset = (presetName: keyof typeof backgroundRemovalPresets) => {
+    setBackgroundRemovalSettings(prev => ({
+      ...prev,
+      ...backgroundRemovalPresets[presetName]
+    }));
+  };
+  
   // 利用可能な場所のリスト
   const availableLocations = [
     'all',
@@ -498,6 +577,570 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     });
   };
 
+  // 背景削除のための型定義
+  interface RGB {
+    r: number;
+    g: number;
+    b: number;
+  }
+
+  interface Point {
+    x: number;
+    y: number;
+  }
+
+  interface BackgroundRemovalOptions {
+    tolerance?: number;
+    multiSample?: boolean;
+    edgeProtection?: boolean;
+    morphology?: boolean;
+    antiAlias?: boolean;
+    showPreview?: boolean;
+    previewMode?: 'mask' | 'result';
+    fastMode?: boolean; // 高速モード
+    maxSize?: number;   // 最大処理サイズ
+    detectionMode?: BackgroundDetectionMode; // 背景検出モード
+  }
+
+  // 高速RGB色差計算（パフォーマンス重視）
+  const calculateColorDistance = (color1: RGB, color2: RGB): number => {
+    const deltaR = color1.r - color2.r;
+    const deltaG = color1.g - color2.g;
+    const deltaB = color1.b - color2.b;
+    
+    // 知覚的重み付きユークリッド距離（高速版）
+    const weightR = 0.3;
+    const weightG = 0.59; // 人間の目は緑に敏感
+    const weightB = 0.11;
+    
+    return Math.sqrt(
+      weightR * deltaR * deltaR +
+      weightG * deltaG * deltaG +
+      weightB * deltaB * deltaB
+    );
+  };
+
+  // HSV色空間変換
+  const rgbToHsv = (rgb: RGB): { h: number; s: number; v: number } => {
+    const r = rgb.r / 255;
+    const g = rgb.g / 255;
+    const b = rgb.b / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const diff = max - min;
+    
+    let h = 0;
+    if (diff !== 0) {
+      if (max === r) {
+        h = ((g - b) / diff) % 6;
+      } else if (max === g) {
+        h = (b - r) / diff + 2;
+      } else {
+        h = (r - g) / diff + 4;
+      }
+    }
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+    
+    const s = max === 0 ? 0 : diff / max;
+    const v = max;
+    
+    return { h, s: s * 100, v: v * 100 };
+  };
+
+  // 背景検出タイプの定義
+  type BackgroundDetectionMode = 'auto' | 'white' | 'light' | 'beige' | 'manual' | 'ultra';
+
+  // 革新的アルゴリズム用の型定義
+  interface GridCell {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    avgColor: RGB;
+    variance: number;
+    fishProbability: number;
+    backgroundProbability: number;
+  }
+
+  interface FishFeatures {
+    centerX: number;
+    centerY: number;
+    area: number;
+    aspectRatio: number;
+    compactness: number;
+    colorUniformity: number;
+  }
+
+  // 包括的な明るい背景検出
+  const isLightBackground = (color: RGB, mode: BackgroundDetectionMode = 'auto', tolerance: number = 30): boolean => {
+    const avgBrightness = (color.r + color.g + color.b) / 3;
+    const hsv = rgbToHsv(color);
+    
+    switch (mode) {
+      case 'white':
+        // 純白背景：高輝度 + 低彩度
+        return avgBrightness >= 220 && hsv.s <= 15;
+        
+      case 'light':
+        // 明るい背景：中高輝度 + 低彩度
+        return avgBrightness >= 170 && hsv.s <= 25;
+        
+      case 'beige':
+        // ベージュ/クリーム背景：中輝度 + 低彩度 + 暖色系
+        return avgBrightness >= 160 && hsv.s <= 40 && 
+               (hsv.h >= 20 && hsv.h <= 60); // 黄～オレンジ系
+        
+      case 'auto':
+        // 自動判定：複数の条件を組み合わせ
+        if (avgBrightness >= 220 && hsv.s <= 15) return true; // 純白
+        if (avgBrightness >= 180 && hsv.s <= 20) return true; // 明るいグレー
+        if (avgBrightness >= 160 && hsv.s <= 35 && hsv.h >= 20 && hsv.h <= 60) return true; // ベージュ
+        if (avgBrightness >= 200 && hsv.s <= 30) return true; // その他明るい色
+        return false;
+        
+      case 'manual':
+        // 手動モード：より緩い条件
+        return avgBrightness >= 150 && hsv.s <= 50;
+        
+      case 'ultra':
+        // Ultraモード：Ultra-Algorithmが処理するため、常にfalse
+        return false;
+        
+      default:
+        return false;
+    }
+  };
+
+  // 従来の白背景検出は互換性のため残す
+  const isWhiteBackground = (color: RGB, tolerance: number = 30): boolean => {
+    return isLightBackground(color, 'white', tolerance);
+  };
+
+  // 🚀 Ultra-Algorithm: インテリジェント・グリッド分析
+  const analyzeImageGrid = (imageData: ImageData, gridSize: number = 12): GridCell[] => {
+    const { width, height, data } = imageData;
+    const cellWidth = Math.floor(width / gridSize);
+    const cellHeight = Math.floor(height / gridSize);
+    const cells: GridCell[] = [];
+
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        const cellX = col * cellWidth;
+        const cellY = row * cellHeight;
+        const actualWidth = Math.min(cellWidth, width - cellX);
+        const actualHeight = Math.min(cellHeight, height - cellY);
+
+        // セル内の色データを分析
+        const colors: RGB[] = [];
+        for (let y = cellY; y < cellY + actualHeight; y += 2) { // サンプリング間隔を2に
+          for (let x = cellX; x < cellX + actualWidth; x += 2) {
+            const idx = (y * width + x) * 4;
+            colors.push({
+              r: data[idx],
+              g: data[idx + 1],
+              b: data[idx + 2]
+            });
+          }
+        }
+
+        if (colors.length === 0) continue;
+
+        // 平均色計算
+        const avgColor = {
+          r: colors.reduce((sum, c) => sum + c.r, 0) / colors.length,
+          g: colors.reduce((sum, c) => sum + c.g, 0) / colors.length,
+          b: colors.reduce((sum, c) => sum + c.b, 0) / colors.length
+        };
+
+        // 色分散計算
+        const variance = colors.reduce((sum, c) => {
+          return sum + Math.pow(c.r - avgColor.r, 2) + 
+                     Math.pow(c.g - avgColor.g, 2) + 
+                     Math.pow(c.b - avgColor.b, 2);
+        }, 0) / colors.length;
+
+        // 魚の存在確率計算（位置ベース + 色特徴ベース）
+        const centerX = cellX + actualWidth / 2;
+        const centerY = cellY + actualHeight / 2;
+        const distanceFromCenter = Math.sqrt(
+          Math.pow(centerX - width / 2, 2) + Math.pow(centerY - height / 2, 2)
+        ) / Math.sqrt(Math.pow(width / 2, 2) + Math.pow(height / 2, 2));
+        
+        // 位置による確率（中央ほど高い）
+        const positionProb = Math.max(0, 1 - distanceFromCenter * 1.2);
+        
+        // 色の複雑さによる確率（魚は複雑な色パターンを持つ）
+        const complexityProb = Math.min(1, variance / 2000);
+        
+        // 明度による調整（極端に明るいまたは暗い部分は背景の可能性が高い）
+        const brightness = (avgColor.r + avgColor.g + avgColor.b) / 3;
+        const brightnessProb = brightness > 240 || brightness < 40 ? 0.2 : 1.0;
+
+        const fishProbability = (positionProb * 0.4 + complexityProb * 0.4 + brightnessProb * 0.2);
+        const backgroundProbability = 1 - fishProbability;
+
+        cells.push({
+          x: cellX,
+          y: cellY,
+          width: actualWidth,
+          height: actualHeight,
+          avgColor,
+          variance,
+          fishProbability,
+          backgroundProbability
+        });
+      }
+    }
+
+    return cells;
+  };
+
+  // 🧠 Ultra-Algorithm: 確率的マスキングシステム
+  const generateProbabilisticMask = (
+    imageData: ImageData, 
+    gridCells: GridCell[]
+  ): number[][] => {
+    const { width, height, data } = imageData;
+    const mask = Array(height).fill(null).map(() => Array(width).fill(0));
+
+    // 各ピクセルの背景確率を計算
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const pixelColor = {
+          r: data[idx],
+          g: data[idx + 1],
+          b: data[idx + 2]
+        };
+
+        // 所属するグリッドセルを特定
+        const cell = gridCells.find(c => 
+          x >= c.x && x < c.x + c.width && 
+          y >= c.y && y < c.y + c.height
+        );
+
+        if (!cell) {
+          mask[y][x] = 1; // デフォルトで背景とする
+          continue;
+        }
+
+        // 複数の要素から確率を計算
+        let backgroundProb = 0;
+
+        // 1. セルの背景確率
+        backgroundProb += cell.backgroundProbability * 0.3;
+
+        // 2. 色差による確率
+        const colorDistance = calculateColorDistance(pixelColor, cell.avgColor);
+        const colorProb = Math.min(1, colorDistance / 100);
+        backgroundProb += colorProb * 0.2;
+
+        // 3. 端からの距離による確率
+        const edgeDistance = Math.min(
+          x, y, width - x - 1, height - y - 1
+        ) / Math.min(width, height);
+        const edgeProb = Math.max(0, 1 - edgeDistance * 3);
+        backgroundProb += edgeProb * 0.2;
+
+        // 4. 水族館環境特有の判定
+        const hsv = rgbToHsv(pixelColor);
+        let aquariumProb = 0;
+        
+        // 水の特徴（青系、高明度、低彩度）
+        if (hsv.h >= 180 && hsv.h <= 240 && hsv.v > 50) {
+          aquariumProb += 0.7;
+        }
+        
+        // 砂・岩の特徴（茶系、低彩度）
+        if ((hsv.h >= 20 && hsv.h <= 60) && hsv.s < 50) {
+          aquariumProb += 0.6;
+        }
+        
+        // 極端に明るい部分（照明、気泡）
+        if (hsv.v > 90 && hsv.s < 20) {
+          aquariumProb += 0.8;
+        }
+
+        backgroundProb += aquariumProb * 0.3;
+
+        // 確率を0-1の範囲に正規化
+        mask[y][x] = Math.max(0, Math.min(1, backgroundProb));
+      }
+    }
+
+    return mask;
+  };
+
+  // 明るい背景領域の検出（拡張版）
+  const detectLightBackgroundAreas = (imageData: ImageData, mode: BackgroundDetectionMode = 'auto'): RGB[] => {
+    const { width, height, data } = imageData;
+    const lightColors: RGB[] = [];
+    
+    // エッジ部分の明るい領域を優先的にサンプリング
+    const edgePoints: Point[] = [];
+    
+    // 上下のエッジ（密度を上げて精度向上）
+    for (let x = 0; x < width; x += Math.max(1, Math.floor(width / 30))) {
+      edgePoints.push({ x, y: 0 });
+      edgePoints.push({ x, y: height - 1 });
+    }
+    
+    // 左右のエッジ
+    for (let y = 0; y < height; y += Math.max(1, Math.floor(height / 30))) {
+      edgePoints.push({ x: 0, y });
+      edgePoints.push({ x: width - 1, y });
+    }
+    
+    // 四隅の詳細サンプリング
+    const cornerSize = Math.min(50, Math.floor(Math.min(width, height) / 10));
+    for (let x = 0; x < cornerSize; x += 5) {
+      for (let y = 0; y < cornerSize; y += 5) {
+        edgePoints.push({ x, y }); // 左上
+        edgePoints.push({ x: width - 1 - x, y }); // 右上
+        edgePoints.push({ x, y: height - 1 - y }); // 左下
+        edgePoints.push({ x: width - 1 - x, y: height - 1 - y }); // 右下
+      }
+    }
+    
+    edgePoints.forEach(({ x, y }) => {
+      const idx = (y * width + x) * 4;
+      const color = {
+        r: data[idx],
+        g: data[idx + 1],
+        b: data[idx + 2]
+      };
+      
+      if (isLightBackground(color, mode)) {
+        lightColors.push(color);
+      }
+    });
+    
+    return lightColors;
+  };
+
+  // 従来の白背景検出（互換性のため）
+  const detectWhiteBackgroundAreas = (imageData: ImageData): RGB[] => {
+    return detectLightBackgroundAreas(imageData, 'white');
+  };
+
+  // 改良された背景色検出（検出モード対応）
+  const detectBackgroundColors = (imageData: ImageData, mode: BackgroundDetectionMode = 'auto'): RGB[] => {
+    // 1. 明るい背景領域を優先検出
+    const lightColors = detectLightBackgroundAreas(imageData, mode);
+    if (lightColors.length > 0) {
+      return lightColors;
+    }
+    
+    // 2. 従来の角・辺サンプリング（フォールバック）
+    const { width, height, data } = imageData;
+    const samples: Point[] = [
+      { x: 0, y: 0 }, // 左上
+      { x: width - 1, y: 0 }, // 右上
+      { x: 0, y: height - 1 }, // 左下
+      { x: width - 1, y: height - 1 }, // 右下
+      { x: Math.floor(width / 2), y: 0 }, // 上中央
+      { x: Math.floor(width / 2), y: height - 1 }, // 下中央
+      { x: 0, y: Math.floor(height / 2) }, // 左中央
+      { x: width - 1, y: Math.floor(height / 2) } // 右中央
+    ];
+
+    return samples.map(({ x, y }) => {
+      const idx = (y * width + x) * 4;
+      return {
+        r: data[idx],
+        g: data[idx + 1],
+        b: data[idx + 2]
+      };
+    });
+  };
+
+  // 背景色かどうかを判定（検出モード対応）
+  const isBackgroundColor = (
+    pixel: RGB, 
+    backgroundColors: RGB[], 
+    tolerance: number, 
+    mode: BackgroundDetectionMode = 'auto'
+  ): boolean => {
+    // 1. 明るい背景かどうかを最初に高速チェック
+    if (isLightBackground(pixel, mode, tolerance * 0.8)) {
+      return true;
+    }
+    
+    // 2. 通常の色差計算
+    return backgroundColors.some(bgColor => 
+      calculateColorDistance(pixel, bgColor) <= tolerance
+    );
+  };
+
+  // Flood Fill アルゴリズムによる連結領域の検出
+  const floodFillBackground = (
+    imageData: ImageData, 
+    startPoints: Point[], 
+    tolerance: number,
+    mode: BackgroundDetectionMode = 'auto'
+  ): boolean[][] => {
+    const { width, height, data } = imageData;
+    const mask = Array(height).fill(null).map(() => Array(width).fill(false));
+    
+    const getPixelColor = (x: number, y: number): RGB => {
+      const idx = (y * width + x) * 4;
+      return {
+        r: data[idx],
+        g: data[idx + 1],
+        b: data[idx + 2]
+      };
+    };
+
+    const isValid = (x: number, y: number): boolean => {
+      return x >= 0 && x < width && y >= 0 && y < height;
+    };
+
+    // 8方向の隣接点
+    const directions = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1],           [0, 1],
+      [1, -1],  [1, 0],  [1, 1]
+    ];
+
+    startPoints.forEach(start => {
+      if (mask[start.y][start.x]) return;
+
+      const queue: Point[] = [start];
+      const targetColor = getPixelColor(start.x, start.y);
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        
+        if (mask[current.y][current.x]) continue;
+
+        const currentColor = getPixelColor(current.x, current.y);
+        if (isLightBackground(currentColor, mode, tolerance) || 
+            calculateColorDistance(currentColor, targetColor) <= tolerance) {
+          mask[current.y][current.x] = true;
+
+          // 隣接ピクセルをキューに追加
+          directions.forEach(([dx, dy]) => {
+            const nx = current.x + dx;
+            const ny = current.y + dy;
+            if (isValid(nx, ny) && !mask[ny][nx]) {
+              queue.push({ x: nx, y: ny });
+            }
+          });
+        }
+      }
+    });
+
+    return mask;
+  };
+
+  // モルフォロジー演算（クロージング：小さな穴を埋める）
+  const morphologyClosing = (mask: boolean[][], kernelSize: number = 3): boolean[][] => {
+    const height = mask.length;
+    const width = mask[0].length;
+    const result = mask.map(row => [...row]);
+    
+    const offset = Math.floor(kernelSize / 2);
+
+    // Dilation（膨張）
+    for (let y = offset; y < height - offset; y++) {
+      for (let x = offset; x < width - offset; x++) {
+        if (!mask[y][x]) {
+          let hasNeighbor = false;
+          for (let ky = -offset; ky <= offset; ky++) {
+            for (let kx = -offset; kx <= offset; kx++) {
+              if (mask[y + ky][x + kx]) {
+                hasNeighbor = true;
+                break;
+              }
+            }
+            if (hasNeighbor) break;
+          }
+          if (hasNeighbor) result[y][x] = true;
+        }
+      }
+    }
+
+    // Erosion（収縮）
+    const temp = result.map(row => [...row]);
+    for (let y = offset; y < height - offset; y++) {
+      for (let x = offset; x < width - offset; x++) {
+        if (temp[y][x]) {
+          let allNeighbors = true;
+          for (let ky = -offset; ky <= offset; ky++) {
+            for (let kx = -offset; kx <= offset; kx++) {
+              if (!temp[y + ky][x + kx]) {
+                allNeighbors = false;
+                break;
+              }
+            }
+            if (!allNeighbors) break;
+          }
+          if (!allNeighbors) result[y][x] = false;
+        }
+      }
+    }
+
+    return result;
+  };
+
+  // ガウシアンブラーによるエッジスムージング
+  const applyGaussianBlur = (mask: boolean[][], radius: number = 1): number[][] => {
+    const height = mask.length;
+    const width = mask[0].length;
+    const result = Array(height).fill(null).map(() => Array(width).fill(0));
+
+    // ガウシアンカーネルの生成
+    const sigma = radius / 3;
+    const size = radius * 2 + 1;
+    const kernel: number[] = [];
+    let sum = 0;
+
+    for (let i = 0; i < size; i++) {
+      const x = i - radius;
+      const value = Math.exp(-(x * x) / (2 * sigma * sigma));
+      kernel[i] = value;
+      sum += value;
+    }
+
+    // 正規化
+    for (let i = 0; i < size; i++) {
+      kernel[i] /= sum;
+    }
+
+    // 水平方向のブラー
+    const temp = Array(height).fill(null).map(() => Array(width).fill(0));
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let blurValue = 0;
+        for (let k = 0; k < size; k++) {
+          const sx = x + k - radius;
+          if (sx >= 0 && sx < width) {
+            blurValue += (mask[y][sx] ? 1 : 0) * kernel[k];
+          }
+        }
+        temp[y][x] = blurValue;
+      }
+    }
+
+    // 垂直方向のブラー
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let blurValue = 0;
+        for (let k = 0; k < size; k++) {
+          const sy = y + k - radius;
+          if (sy >= 0 && sy < height) {
+            blurValue += temp[sy][x] * kernel[k];
+          }
+        }
+        result[y][x] = blurValue;
+      }
+    }
+
+    return result;
+  };
+
   const cleanOcean = () => {
     setPollutionLevel(prev => {
       const newLevel = Math.max(0, prev - 1);
@@ -550,45 +1193,380 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     });
   };
 
-  const removeBackground = (img: HTMLImageElement): Promise<HTMLImageElement> => {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve(img);
-        return;
+  // 画像のリサイズ（高速処理用）
+  const resizeImageForProcessing = (img: HTMLImageElement, maxSize: number): HTMLCanvasElement => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    
+    const { width, height } = img;
+    const aspectRatio = width / height;
+    
+    if (width <= maxSize && height <= maxSize) {
+      canvas.width = width;
+      canvas.height = height;
+    } else if (width > height) {
+      canvas.width = maxSize;
+      canvas.height = maxSize / aspectRatio;
+    } else {
+      canvas.height = maxSize;
+      canvas.width = maxSize * aspectRatio;
+    }
+    
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  };
+
+  // 高速背景削除（明るい背景対応）
+  const fastLightBackgroundRemoval = (
+    imageData: ImageData, 
+    tolerance: number = 30, 
+    mode: BackgroundDetectionMode = 'auto'
+  ): ImageData => {
+    // ultraモードの場合は専用アルゴリズムを使用
+    if (mode === 'ultra') {
+      return ultraBackgroundRemoval(imageData, tolerance);
+    }
+    
+    const { width, height, data } = imageData;
+    const resultData = new Uint8ClampedArray(data);
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      if (isLightBackground({ r, g, b }, mode, tolerance)) {
+        resultData[i + 3] = 0; // アルファ値を0にして透明化
       }
+    }
+    
+    return new ImageData(resultData, width, height);
+  };
 
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
+  // 従来の白背景削除（互換性のため）
+  const fastWhiteBackgroundRemoval = (imageData: ImageData, tolerance: number = 30): ImageData => {
+    return fastLightBackgroundRemoval(imageData, tolerance, 'white');
+  };
 
-      const bgR = data[0];
-      const bgG = data[1];
-      const bgB = data[2];
-      const threshold = 30;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-
-        if (
-          Math.abs(r - bgR) < threshold &&
-          Math.abs(g - bgG) < threshold &&
-          Math.abs(b - bgB) < threshold
-        ) {
-          data[i + 3] = 0;
+  // 🌟 Ultra-Algorithm: 革新的背景削除システム
+  const ultraBackgroundRemoval = (imageData: ImageData, tolerance: number = 30): ImageData => {
+    const { width, height, data } = imageData;
+    
+    console.log('🚀 Ultra-Algorithm starting...');
+    
+    // Step 1: グリッド分析
+    const gridCells = analyzeImageGrid(imageData, 12);
+    console.log('📊 Grid analysis completed:', gridCells.length, 'cells');
+    
+    // Step 2: 確率的マスク生成
+    const probabilisticMask = generateProbabilisticMask(imageData, gridCells);
+    console.log('🧠 Probabilistic mask generated');
+    
+    // Step 3: マスクの平滑化（ノイズ除去）
+    const smoothMask = Array(height).fill(null).map(() => Array(width).fill(0));
+    const kernelSize = 3;
+    const kernelRadius = Math.floor(kernelSize / 2);
+    
+    for (let y = kernelRadius; y < height - kernelRadius; y++) {
+      for (let x = kernelRadius; x < width - kernelRadius; x++) {
+        let sum = 0;
+        let count = 0;
+        
+        for (let ky = -kernelRadius; ky <= kernelRadius; ky++) {
+          for (let kx = -kernelRadius; kx <= kernelRadius; kx++) {
+            sum += probabilisticMask[y + ky][x + kx];
+            count++;
+          }
         }
+        
+        smoothMask[y][x] = sum / count;
+      }
+    }
+    
+    // Step 4: 最終マスク適用
+    const resultData = new Uint8ClampedArray(data);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const maskValue = smoothMask[y] ? smoothMask[y][x] : probabilisticMask[y][x];
+        
+        // 確率が閾値を超える場合は背景として削除
+        if (maskValue > 0.6) {
+          resultData[idx + 3] = 0; // 完全透明
+        } else if (maskValue > 0.3) {
+          // 半透明化でソフトエッジ
+          resultData[idx + 3] = Math.round((1 - maskValue) * 255);
+        }
+        // それ以外は前景として保持
+      }
+    }
+    
+    console.log('✨ Ultra-Algorithm completed successfully');
+    return new ImageData(resultData, width, height);
+  };
+
+  // 高度な背景削除関数（段階的処理対応）
+  const removeBackground = (img: HTMLImageElement, options: BackgroundRemovalOptions = {}): Promise<HTMLImageElement> => {
+    return new Promise((resolve) => {
+      // デフォルトオプション
+      const opts = {
+        tolerance: 35,
+        multiSample: true,
+        edgeProtection: true,
+        morphology: true,
+        antiAlias: true,
+        fastMode: false,
+        maxSize: 1000,
+        detectionMode: 'auto' as BackgroundDetectionMode,
+        ...options
+      };
+
+      // 高速モードまたは大きな画像の場合は縮小処理
+      let processCanvas: HTMLCanvasElement;
+      let scale = 1;
+      
+      if (opts.fastMode || img.width > opts.maxSize || img.height > opts.maxSize) {
+        processCanvas = resizeImageForProcessing(img, opts.maxSize);
+        scale = Math.min(opts.maxSize / img.width, opts.maxSize / img.height, 1);
+      } else {
+        processCanvas = document.createElement('canvas');
+        processCanvas.width = img.width;
+        processCanvas.height = img.height;
+        const ctx = processCanvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
       }
 
-      ctx.putImageData(imageData, 0, 0);
+      const ctx = processCanvas.getContext('2d')!;
+      const imageData = ctx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+
+      let resultImageData: ImageData;
+
+      // 高速モードまたはultraモード：明るい背景対応の簡単処理
+      if (opts.fastMode || opts.detectionMode === 'ultra') {
+        resultImageData = fastLightBackgroundRemoval(imageData, opts.tolerance, opts.detectionMode);
+      } else {
+        // 通常モード：高品質処理
+        const { width, height, data } = imageData;
+
+        // 1. 背景色検出（検出モード対応）
+        const backgroundColors = detectBackgroundColors(imageData, opts.detectionMode);
+        
+        // 2. 背景色の統合
+        const uniqueBackgroundColors: RGB[] = [];
+        backgroundColors.forEach(color => {
+          const exists = uniqueBackgroundColors.some(existing => 
+            calculateColorDistance(color, existing) < 15
+          );
+          if (!exists) {
+            uniqueBackgroundColors.push(color);
+          }
+        });
+
+        // 3. 適応的閾値計算
+        let adaptiveTolerance = opts.tolerance;
+        if (opts.multiSample) {
+          const colorVariance = calculateColorVariance(backgroundColors);
+          const imageComplexity = calculateImageComplexity(imageData);
+          const lighting = calculateLightingConditions(backgroundColors);
+          
+          const varianceAdjustment = colorVariance * 0.25;
+          const complexityAdjustment = imageComplexity * 15;
+          const lightingAdjustment = lighting.contrast < 0.3 ? 10 : lighting.contrast > 0.7 ? -5 : 0;
+          
+          adaptiveTolerance = Math.max(15, Math.min(80, 
+            opts.tolerance + varianceAdjustment + complexityAdjustment + lightingAdjustment
+          ));
+        }
+
+        // 4. Flood Fill処理
+        const cornerPoints: Point[] = [
+          { x: 0, y: 0 },
+          { x: width - 1, y: 0 },
+          { x: 0, y: height - 1 },
+          { x: width - 1, y: height - 1 }
+        ];
+
+        let backgroundMask = floodFillBackground(imageData, cornerPoints, adaptiveTolerance, opts.detectionMode);
+
+        // 5. エッジ保護
+        if (opts.edgeProtection) {
+          backgroundMask = protectEdges(imageData, backgroundMask, adaptiveTolerance * 0.6);
+        }
+
+        // 6. モルフォロジー演算
+        if (opts.morphology) {
+          backgroundMask = morphologyClosing(backgroundMask, 3);
+        }
+
+        // 7. アンチエイリアス
+        let alphaMask: number[][];
+        if (opts.antiAlias) {
+          alphaMask = applyGaussianBlur(backgroundMask, 1);
+        } else {
+          alphaMask = backgroundMask.map(row => row.map(val => val ? 0 : 1));
+        }
+
+        // 8. 結果適用
+        const resultData = new Uint8ClampedArray(data);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const alpha = alphaMask[y][x];
+            resultData[idx + 3] = Math.round(alpha * 255);
+          }
+        }
+
+        resultImageData = new ImageData(resultData, width, height);
+      }
+
+      // 結果をオリジナルサイズに拡大（必要な場合）
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = img.width;
+      finalCanvas.height = img.height;
+      const finalCtx = finalCanvas.getContext('2d')!;
+      
+      // 処理した画像を描画
+      ctx.putImageData(resultImageData, 0, 0);
+      finalCtx.drawImage(processCanvas, 0, 0, img.width, img.height);
+      
       const newImg = new Image();
       newImg.onload = () => resolve(newImg);
-      newImg.src = canvas.toDataURL('image/png');
+      newImg.src = finalCanvas.toDataURL('image/png');
     });
+  };
+
+  // 画像の複雑度を計算（エッジ密度とテクスチャ分析）
+  const calculateImageComplexity = (imageData: ImageData): number => {
+    const { width, height, data } = imageData;
+    let edgeCount = 0;
+    let totalPixels = 0;
+    
+    // Sobelエッジ検出による複雑度計算
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const current = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        
+        // 周囲のピクセルとの差を計算
+        const neighbors = [
+          ((y-1) * width + (x-1)) * 4,
+          ((y-1) * width + x) * 4,
+          ((y-1) * width + (x+1)) * 4,
+          (y * width + (x-1)) * 4,
+          (y * width + (x+1)) * 4,
+          ((y+1) * width + (x-1)) * 4,
+          ((y+1) * width + x) * 4,
+          ((y+1) * width + (x+1)) * 4
+        ];
+        
+        let maxDiff = 0;
+        neighbors.forEach(nIdx => {
+          const neighbor = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
+          maxDiff = Math.max(maxDiff, Math.abs(current - neighbor));
+        });
+        
+        if (maxDiff > 20) edgeCount++;
+        totalPixels++;
+      }
+    }
+    
+    return totalPixels > 0 ? edgeCount / totalPixels : 0;
+  };
+
+  // 照明条件を分析（明度とコントラスト）
+  const calculateLightingConditions = (colors: RGB[]): { brightness: number; contrast: number } => {
+    if (colors.length === 0) return { brightness: 0.5, contrast: 0.5 };
+    
+    // 明度計算（YUV色空間の輝度成分）
+    const brightness = colors.map(color => 
+      0.299 * color.r + 0.587 * color.g + 0.114 * color.b
+    );
+    
+    const avgBrightness = brightness.reduce((sum, val) => sum + val, 0) / brightness.length;
+    const brightnessBrightness = avgBrightness / 255;
+    
+    // コントラスト計算（標準偏差ベース）
+    const variance = brightness.reduce((sum, val) => sum + Math.pow(val - avgBrightness, 2), 0) / brightness.length;
+    const contrastValue = Math.sqrt(variance) / 128; // 正規化
+    
+    return {
+      brightness: brightnessBrightness,
+      contrast: Math.min(1, contrastValue)
+    };
+  };
+
+  // 色分散を計算（背景色の多様性を測定）
+  const calculateColorVariance = (colors: RGB[]): number => {
+    if (colors.length < 2) return 0;
+
+    const mean = colors.reduce((acc, color) => ({
+      r: acc.r + color.r,
+      g: acc.g + color.g,
+      b: acc.b + color.b
+    }), { r: 0, g: 0, b: 0 });
+
+    mean.r /= colors.length;
+    mean.g /= colors.length;
+    mean.b /= colors.length;
+
+    const variance = colors.reduce((acc, color) => {
+      return acc + calculateColorDistance(color, mean);
+    }, 0) / colors.length;
+
+    return variance;
+  };
+
+  // エッジ保護機能（前景オブジェクトの境界を保護）
+  const protectEdges = (
+    imageData: ImageData, 
+    mask: boolean[][], 
+    tolerance: number
+  ): boolean[][] => {
+    const { width, height, data } = imageData;
+    const result = mask.map(row => [...row]);
+
+    // Sobelオペレーターによるエッジ検出
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        if (!mask[y][x]) continue; // 既に前景として判定済みの場合はスキップ
+
+        // 周囲のピクセルの色を取得
+        const neighbors: RGB[] = [];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            const idx = (ny * width + nx) * 4;
+            neighbors.push({
+              r: data[idx],
+              g: data[idx + 1],
+              b: data[idx + 2]
+            });
+          }
+        }
+
+        // 現在のピクセルの色
+        const currentIdx = (y * width + x) * 4;
+        const currentColor = {
+          r: data[currentIdx],
+          g: data[currentIdx + 1],
+          b: data[currentIdx + 2]
+        };
+
+        // エッジ強度を計算
+        const maxColorDiff = Math.max(...neighbors.map(neighbor => 
+          calculateColorDistance(currentColor, neighbor)
+        ));
+
+        // エッジが強い場合は前景として保護
+        if (maxColorDiff > tolerance) {
+          result[y][x] = false;
+        }
+      }
+    }
+
+    return result;
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -601,22 +1579,108 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       img.crossOrigin = 'anonymous';
       img.onload = async () => {
         const name = file.name.split('.')[0];
-        const processedImg = await removeBackground(img);
-        const speciesType = name.toLowerCase().includes('crab') ? 'crab' :
-                          name.toLowerCase().includes('jellyfish') ? 'jellyfish' : 'fish';
-        setFishTypes(prev => [...prev, {
-          image: processedImg,
-          url: e.target?.result as string,
-          name,
-          count: 1,
-          speedFactor: 1,
-          scale: 1,
-          speciesType
-        }]);
+        
+        // プレビューモードの場合、設定パネルを表示してプレビュー画像を設定
+        if (backgroundRemovalSettings.showPreview) {
+          setPreviewImage(e.target?.result as string);
+          setShowBackgroundSettings(true);
+          return;
+        }
+        
+        // 通常の処理（背景削除して魚を追加）
+        setIsProcessing(true);
+        try {
+          const processedImg = await removeBackground(img, backgroundRemovalSettings);
+          const speciesType = name.toLowerCase().includes('crab') ? 'crab' :
+                            name.toLowerCase().includes('jellyfish') ? 'jellyfish' : 'fish';
+          setFishTypes(prev => [...prev, {
+            image: processedImg,
+            url: e.target?.result as string,
+            name,
+            count: 1,
+            speedFactor: 1,
+            scale: 1,
+            speciesType
+          }]);
+          
+          // プレビュー画像をクリア
+          setPreviewImage(null);
+        } finally {
+          setIsProcessing(false);
+        }
       };
       img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
+  };
+
+  // プレビュー画像の背景削除処理（自動更新対応）
+  const handlePreviewBackgroundRemoval = async (originalImageSrc: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = async () => {
+        // プレビューでは高速モードを強制
+        const previewSettings = {
+          ...backgroundRemovalSettings,
+          fastMode: true,
+          maxSize: 400
+        };
+        const processedImg = await removeBackground(img, previewSettings);
+        resolve(processedImg.src);
+      };
+      img.src = originalImageSrc;
+    });
+  };
+
+  // プレビューの自動更新
+  const updatePreview = async () => {
+    if (!previewImage) return;
+    
+    try {
+      const processed = await handlePreviewBackgroundRemoval(previewImage);
+      setProcessedPreview(processed);
+    } catch (error) {
+      console.error('Preview update failed:', error);
+    }
+  };
+
+  // プレビューを確定して魚を追加
+  const confirmPreview = async () => {
+    if (!previewImage) return;
+    
+    setIsProcessing(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = async () => {
+        try {
+          const processedImg = await removeBackground(img, backgroundRemovalSettings);
+          const name = `Fish_${Date.now()}`;
+          const speciesType = 'fish'; // デフォルト
+          
+          setFishTypes(prev => [...prev, {
+            image: processedImg,
+            url: previewImage,
+            name,
+            count: 1,
+            speedFactor: 1,
+            scale: 1,
+            speciesType
+          }]);
+          
+          // プレビューモードを終了
+          setShowBackgroundSettings(false);
+          setPreviewImage(null);
+          setProcessedPreview(null);
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      img.src = previewImage;
+    } catch (error) {
+      setIsProcessing(false);
+    }
   };
 
   const updateFishCount = (index: number, change: number) => {
@@ -2442,8 +3506,12 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
             
             <div className="flex items-center gap-1">
               <label
-                className="p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition cursor-pointer"
-                title={t('addNewFish')}
+                className={`p-1.5 rounded text-white transition cursor-pointer ${
+                  isProcessing 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-500 hover:bg-blue-600'
+                }`}
+                title={isProcessing ? '処理中...' : t('addNewFish')}
               >
                 <Upload size={14} />
                 <input
@@ -2451,8 +3519,16 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="hidden"
+                  disabled={isProcessing}
                 />
               </label>
+              <button
+                onClick={() => setShowBackgroundSettings(true)}
+                className="p-1.5 rounded text-white bg-purple-500 hover:bg-purple-600 transition"
+                title="背景削除設定"
+              >
+                <Settings size={14} />
+              </button>
         <button
           onClick={() => setShowCausesPanel(!showCausesPanel)}
                 className="p-1.5 rounded text-white bg-amber-500 hover:bg-amber-600 transition"
@@ -3023,6 +4099,292 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                 </div>
               </div>
             )}
+
+      {/* 背景削除設定パネル */}
+      {showBackgroundSettings && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-30">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-xl text-gray-800">背景削除設定</h3>
+              <button 
+                onClick={() => {
+                  setShowBackgroundSettings(false);
+                  setPreviewImage(null);
+                  setProcessedPreview(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* プレビュー表示 */}
+            {previewImage && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-800 mb-2">プレビュー</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-600 mb-1">元画像</h5>
+                    <img 
+                      src={previewImage} 
+                      alt="Original" 
+                      className="w-full h-48 object-contain border rounded"
+                    />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-600 mb-1">処理後</h5>
+                    {processedPreview ? (
+                      <img 
+                        src={processedPreview} 
+                        alt="Processed" 
+                        className="w-full h-48 object-contain border rounded bg-gray-50"
+                      />
+                    ) : (
+                      <div className="w-full h-48 border rounded bg-gray-50 flex items-center justify-center">
+                        <span className="text-gray-500 text-sm">
+                          {isProcessing ? '処理中...' : 'プレビュー更新ボタンをクリック'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* プリセット選択 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                プリセット設定
+              </label>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button
+                  onClick={() => applyPreset('fast')}
+                  className="px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+                >
+                  高速モード
+                </button>
+                <button
+                  onClick={() => applyPreset('ultra')}
+                  className="px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded text-sm hover:from-purple-700 hover:to-pink-700 font-bold"
+                >
+                  🚀 ULTRA
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button
+                  onClick={() => applyPreset('white')}
+                  className="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                >
+                  白背景用
+                </button>
+                <button
+                  onClick={() => applyPreset('beige')}
+                  className="px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+                >
+                  ベージュ背景用
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => applyPreset('complex')}
+                  className="px-3 py-2 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                >
+                  複雑背景用
+                </button>
+              </div>
+            </div>
+
+            {/* 背景検出モード選択 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                背景検出モード
+              </label>
+              <select
+                value={backgroundRemovalSettings.detectionMode}
+                onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                  ...prev,
+                  detectionMode: e.target.value as BackgroundDetectionMode
+                }))}
+                className="w-full p-2 border border-gray-300 rounded text-sm"
+              >
+                <option value="auto">自動検出（推奨）</option>
+                <option value="ultra">🚀 Ultra-Algorithm（水族館特化）</option>
+                <option value="white">純白背景</option>
+                <option value="light">明るい背景</option>
+                <option value="beige">ベージュ/クリーム</option>
+                <option value="manual">手動調整</option>
+              </select>
+            </div>
+
+            {/* 設定項目 */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  許容値 (Tolerance): {backgroundRemovalSettings.tolerance}
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={backgroundRemovalSettings.tolerance}
+                  onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                    ...prev,
+                    tolerance: parseInt(e.target.value)
+                  }))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>厳密</span>
+                  <span>緩い</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2 mb-3">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.fastMode}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      fastMode: e.target.checked
+                    }))}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium text-green-600">高速モード（推奨）</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.multiSample}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      multiSample: e.target.checked
+                    }))}
+                    className="rounded"
+                    disabled={backgroundRemovalSettings.fastMode}
+                  />
+                  <span className={`text-sm ${backgroundRemovalSettings.fastMode ? 'text-gray-400' : ''}`}>
+                    多点サンプリング
+                  </span>
+                </label>
+
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.edgeProtection}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      edgeProtection: e.target.checked
+                    }))}
+                    className="rounded"
+                    disabled={backgroundRemovalSettings.fastMode}
+                  />
+                  <span className={`text-sm ${backgroundRemovalSettings.fastMode ? 'text-gray-400' : ''}`}>
+                    エッジ保護
+                  </span>
+                </label>
+
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.morphology}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      morphology: e.target.checked
+                    }))}
+                    className="rounded"
+                    disabled={backgroundRemovalSettings.fastMode}
+                  />
+                  <span className={`text-sm ${backgroundRemovalSettings.fastMode ? 'text-gray-400' : ''}`}>
+                    ノイズ除去
+                  </span>
+                </label>
+
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.antiAlias}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      antiAlias: e.target.checked
+                    }))}
+                    className="rounded"
+                    disabled={backgroundRemovalSettings.fastMode}
+                  />
+                  <span className={`text-sm ${backgroundRemovalSettings.fastMode ? 'text-gray-400' : ''}`}>
+                    アンチエイリアス
+                  </span>
+                </label>
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    checked={backgroundRemovalSettings.showPreview}
+                    onChange={(e) => setBackgroundRemovalSettings(prev => ({
+                      ...prev,
+                      showPreview: e.target.checked
+                    }))}
+                    className="rounded"
+                  />
+                  <span className="text-sm">アップロード時に自動でプレビュー表示</span>
+                </label>
+              </div>
+            </div>
+
+            {/* プレビューボタンと確定ボタン */}
+            <div className="flex justify-between mt-6 pt-4 border-t">
+              <div className="space-x-2">
+                {previewImage && (
+                  <button
+                    onClick={updatePreview}
+                    disabled={isProcessing}
+                    className={`px-4 py-2 rounded ${
+                      isProcessing 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white`}
+                  >
+                    {isProcessing ? '処理中...' : 'プレビュー更新'}
+                  </button>
+                )}
+              </div>
+              
+              <div className="space-x-2">
+                <button
+                  onClick={() => {
+                    setShowBackgroundSettings(false);
+                    setPreviewImage(null);
+                    setProcessedPreview(null);
+                  }}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  キャンセル
+                </button>
+                
+                {previewImage && (
+                  <button
+                    onClick={confirmPreview}
+                    disabled={isProcessing}
+                    className={`px-4 py-2 rounded ${
+                      isProcessing 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-500 hover:bg-green-600'
+                    } text-white`}
+                  >
+                    {isProcessing ? '処理中...' : '確定して追加'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
