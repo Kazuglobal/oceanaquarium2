@@ -188,6 +188,67 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
         </div>
       </section>
 
+      {/* Demo Video Section */}
+      <section className="py-20 bg-gradient-to-br from-purple-50 to-pink-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
+            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              実際のゲーム体験をご覧ください
+            </span>
+          </h2>
+          <p className="text-center text-gray-600 mb-12 text-lg">
+            Ocean Adventureの魅力的な世界を動画でチェック
+          </p>
+          
+          <div className="max-w-4xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl" style={{ paddingBottom: '56.25%' }}>
+              {/* YouTube Embed - Replace YOUR_VIDEO_ID with actual YouTube video ID */}
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
+                title="Ocean Adventure Demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            
+            {/* Alternative: Use a placeholder with note about video */}
+            <div className="mt-4 text-center text-sm text-gray-600">
+              <p>※ デモ動画をご覧いただくには、上記のプレイヤーをクリックしてください。</p>
+              <p className="mt-2">動画が表示されない場合は、<a href="#" className="text-blue-600 hover:underline">こちら</a>から直接ご覧ください。</p>
+            </div>
+            
+            {/* Video Features */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Fish className="text-white" size={32} />
+                </div>
+                <h3 className="font-semibold mb-1">海の生き物たち</h3>
+                <p className="text-sm text-gray-600">カラフルな魚との楽しい冒険</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <Sparkles className="text-white" size={32} />
+                </div>
+                <h3 className="font-semibold mb-1">インタラクティブ体験</h3>
+                <p className="text-sm text-gray-600">タッチで反応する楽しい仕掛け</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-pink-500 to-orange-600 rounded-xl flex items-center justify-center">
+                  <Heart className="text-white" size={32} />
+                </div>
+                <h3 className="font-semibold mb-1">教育的コンテンツ</h3>
+                <p className="text-sm text-gray-600">遊びながら学べる仕組み</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Worlds Section */}
       <section id="worlds" className="py-20 relative">
         <div className="container mx-auto px-4">
