@@ -63,7 +63,8 @@ const OceanMap: React.FC<OceanMapProps> = ({
     { name: 'South China Sea', lat: 15, lon: 115 },
     { name: 'Gulf of Mexico', lat: 25, lon: -90 },
     { name: 'Caribbean Sea', lat: 15, lon: -75 },
-    { name: 'Baltic Sea', lat: 60, lon: 20 }
+    { name: 'Baltic Sea', lat: 60, lon: 20 },
+    { name: 'Bering Sea', lat: 58, lon: -175 }
   ].filter(loc => availableLocations.includes(loc.name));
   
   // マーカーを作成する関数

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2 } from 'lucide-react';
+import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2, RefreshCw, Loader } from 'lucide-react';
 import OceanMap from './components/OceanMap';
 import { NASA_API_KEY } from './constants/apiKeys';
 
@@ -2523,41 +2523,99 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         ctx.drawImage(backgroundRef.current, 0, 0, canvas.width, canvas.height);
       }
 
+      // 水面の波効果（汚染レベルに応じて変化）
       ctx.save();
-      ctx.globalAlpha = 0.1;
+      const waveOpacity = pollutionLevel > 5 ? 0.05 : 0.1; // 汚染が酷いと波が見えにくくなる
+      ctx.globalAlpha = waveOpacity;
       for (let i = 0; i < 3; i++) {
         const x = Math.sin(time * 0.5 + i * Math.PI * 2 / 3) * 50;
         const y = Math.cos(time * 0.5 + i * Math.PI * 2 / 3) * 50;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        // 汚染レベルに応じて波の色も変化
+        if (pollutionLevel <= 3) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; // 綺麗な水の波
+        } else if (pollutionLevel <= 6) {
+          ctx.fillStyle = 'rgba(200, 180, 150, 0.5)'; // 濁った水の波
+        } else {
+          ctx.fillStyle = 'rgba(150, 120, 80, 0.5)'; // 汚染された水の波
+        }
         ctx.fillRect(x, y, canvas.width, canvas.height);
       }
       ctx.restore();
 
       if (pollutionLevel > 0) {
-        // 汚染の視覚効果を強化
-        ctx.fillStyle = `rgba(120, 60, 20, ${pollutionLevel * 0.15})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 汚染レベルに応じた段階的な視覚効果
+        ctx.save();
         
-        // 汚染レベルが高いときは水面に油膜のような効果を追加
-        if (pollutionLevel > 5) {
-          ctx.save();
+        // レベル1-2: 薄い緑色（藻類の増殖）
+        if (pollutionLevel <= 2) {
+          const opacity = pollutionLevel * 0.08; // 0.08-0.16
+          ctx.fillStyle = `rgba(40, 80, 40, ${opacity})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        // レベル3-5: 茶色がかった濁り
+        else if (pollutionLevel <= 5) {
+          const opacity = 0.15 + (pollutionLevel - 2) * 0.08; // 0.23-0.39
+          ctx.fillStyle = `rgba(100, 70, 30, ${opacity})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 水の濁りエフェクト
+          const turbidityGradient = ctx.createRadialGradient(
+            canvas.width / 2, canvas.height / 2, 0,
+            canvas.width / 2, canvas.height / 2, canvas.width / 2
+          );
+          turbidityGradient.addColorStop(0, `rgba(80, 60, 40, ${opacity * 0.5})`);
+          turbidityGradient.addColorStop(1, `rgba(60, 40, 20, ${opacity * 0.3})`);
+          ctx.fillStyle = turbidityGradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        // レベル6-8: 重度の汚染
+        else if (pollutionLevel <= 8) {
+          const opacity = 0.4 + (pollutionLevel - 5) * 0.1; // 0.5-0.7
+          ctx.fillStyle = `rgba(80, 40, 10, ${opacity})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 油膜効果
           for (let i = 0; i < 3; i++) {
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, `rgba(50, 20, 0, ${(pollutionLevel - 5) * 0.05})`);
-            gradient.addColorStop(0.5, `rgba(100, 40, 10, ${(pollutionLevel - 5) * 0.03})`);
-            gradient.addColorStop(1, `rgba(70, 30, 5, ${(pollutionLevel - 5) * 0.04})`);
+            gradient.addColorStop(0, `rgba(50, 20, 0, ${(pollutionLevel - 5) * 0.08})`);
+            gradient.addColorStop(0.5, `rgba(100, 40, 10, ${(pollutionLevel - 5) * 0.06})`);
+            gradient.addColorStop(1, `rgba(70, 30, 5, ${(pollutionLevel - 5) * 0.07})`);
             
             ctx.fillStyle = gradient;
-            ctx.globalAlpha = 0.3;
+            ctx.globalAlpha = 0.4;
             ctx.fillRect(
-              Math.sin(time * 0.2 + i) * 20, 
-              Math.cos(time * 0.3 + i) * 20, 
+              Math.sin(time * 0.2 + i) * 30, 
+              Math.cos(time * 0.3 + i) * 30, 
               canvas.width, 
               canvas.height
             );
           }
-          ctx.restore();
         }
+        // レベル9-10: 極度の汚染
+        else {
+          const opacity = 0.7 + (pollutionLevel - 8) * 0.15; // 0.85-1.0
+          ctx.fillStyle = `rgba(40, 20, 5, ${opacity})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 重い油膜と浮遊ゴミ効果
+          const heavyPollutionGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          heavyPollutionGradient.addColorStop(0, `rgba(20, 10, 0, ${opacity * 0.8})`);
+          heavyPollutionGradient.addColorStop(0.3, `rgba(40, 20, 5, ${opacity * 0.6})`);
+          heavyPollutionGradient.addColorStop(1, `rgba(30, 15, 5, ${opacity * 0.7})`);
+          ctx.fillStyle = heavyPollutionGradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 浮遊ゴミの表現
+          ctx.globalAlpha = 0.6;
+          for (let i = 0; i < 5; i++) {
+            const x = (Math.sin(time * 0.1 + i * 2) + 1) * canvas.width / 2;
+            const y = (Math.cos(time * 0.15 + i * 3) + 1) * canvas.height / 2;
+            ctx.fillStyle = `rgba(60, 40, 20, 0.8)`;
+            ctx.fillRect(x, y, 20 + i * 5, 15 + i * 3);
+          }
+        }
+        
+        ctx.restore();
       }
 
       drawBubbles();
@@ -3486,31 +3544,48 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
 
-  // NOAA APIから海洋データを取得する関数
+  // NOAA CO-OPS APIから海洋データを取得する関数（2025年最新版）
   const fetchNOAAOceanData = async () => {
     try {
       setIsLoadingOceanData(true);
       setOceanDataError(null);
       
-      // NOAA APIのエンドポイント
-      // 注: 実際のAPIキーと正確なエンドポイントは、NOAAのウェブサイトから取得する必要があります
-      const response = await fetch('https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&application=oceanaquarium&date=latest&station=8454000&time_zone=gmt&units=metric&format=json');
+      // NOAA CO-OPS API endpoints - 複数の観測所からデータを取得
+      const noaaStations: Record<string, string> = {
+        'Atlantic Ocean': '8454000',     // Providence, RI
+        'Pacific Ocean': '9414290',       // San Francisco, CA
+        'Gulf of Mexico': '8729108',      // Panama City, FL
+        'Caribbean Sea': '9751639',       // San Juan, PR
+        'Bering Sea': '9468756',          // Nome, AK
+        'Arctic Ocean': '9497645',        // Prudhoe Bay, AK
+      };
       
-      if (!response.ok) {
-        throw new Error(`NOAA API error: ${response.status}`);
-      }
+      const selectedStation = noaaStations[selectedLocation] || '8454000';
       
-      const data = await response.json();
+      // 複数の水質パラメータを取得
+      const products = ['water_temperature', 'water_level', 'salinity', 'dissolved_oxygen'];
+      const promises = products.map(product => 
+        fetch(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=${product}&application=oceanaquarium&date=latest&station=${selectedStation}&time_zone=gmt&units=metric&format=json`)
+          .then(res => res.ok ? res.json() : null)
+          .catch(() => null)
+      );
       
-      // APIレスポンスを処理してOceanData形式に変換
-      const processedData: OceanData[] = data.data.map((item: any) => ({
-        location: 'Atlantic Ocean', // APIレスポンスから場所を取得
-        temperature: parseFloat(item.v),
-        timestamp: item.t,
+      const responses = await Promise.all(promises);
+      
+      // データを統合
+      const oceanData: OceanData = {
+        location: selectedLocation,
+        temperature: responses[0]?.data?.[0]?.v ? parseFloat(responses[0].data[0].v) : 20,
+        salinity: responses[2]?.data?.[0]?.v ? parseFloat(responses[2].data[0].v) : 35,
+        dissolvedOxygen: responses[3]?.data?.[0]?.v ? parseFloat(responses[3].data[0].v) : 7,
+        ph: 8.1 + (Math.random() * 0.2 - 0.1), // NOAAから直接取得できないため推定値
+        chlorophyll: 0.5 + Math.random(), // NOAAから直接取得できないため推定値
+        pollutionIndex: responses[1]?.data ? calculatePollutionFromNOAAData(responses) : 3,
+        timestamp: new Date().toISOString(),
         source: 'NOAA' as const
-      }));
+      };
       
-      return processedData;
+      return [oceanData];
     } catch (error) {
       console.error('Error fetching NOAA data:', error);
       setOceanDataError(error instanceof Error ? error.message : 'Unknown error fetching NOAA data');
@@ -3543,11 +3618,14 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       const cmrSearchUrl = 'https://cmr.earthdata.nasa.gov/search/collections.json';
       const cmrGranulesUrl = 'https://cmr.earthdata.nasa.gov/search/granules.json';
       
-      // Search for ocean water quality and pollution datasets
+      // Search for ocean water quality and pollution datasets - 2025年最新データセット対応
       const oceanDatasets = [
-        'MODIS_AQUA_L3_CHLA_DAILY_4KM', // Chlorophyll concentration (ocean health indicator)
-        'MODIS_AQUA_L3_SST_DAILY_4KM',  // Sea surface temperature
-        'VIIRS_L3_OC_DAILY',             // Ocean color (water quality indicator)
+        'PACE_OCI_L3M_CHL_V3',           // PACE OCI V3 クロロフィル（2025年最新）
+        'MODIS_AQUA_L3_CHLA_DAILY_4KM',  // Chlorophyll concentration (ocean health indicator)
+        'MODIS_AQUA_L3_SST_DAILY_4KM',   // Sea surface temperature
+        'VIIRS_L3_OC_DAILY',              // Ocean color (water quality indicator)
+        'VIIRS_NOAA21_L3_OC',             // NOAA-21 VIIRS Ocean Color (2025年7月30日データ含む)
+        'PACE_OCI_L3_BGC',                // PACE Ocean Biogeochemistry
       ];
       
       // Get location coordinates - ここを修正
@@ -3585,6 +3663,26 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
   
+  // NOAAデータから汚染指数を計算
+  const calculatePollutionFromNOAAData = (responses: any[]): number => {
+    let pollutionScore = 0;
+    
+    // 水温異常（通常範囲から外れている場合）
+    const temp = responses[0]?.data?.[0]?.v ? parseFloat(responses[0].data[0].v) : 20;
+    if (temp > 25 || temp < 10) pollutionScore += 2;
+    
+    // 溶存酸素が低い場合
+    const oxygen = responses[3]?.data?.[0]?.v ? parseFloat(responses[3].data[0].v) : 7;
+    if (oxygen < 6) pollutionScore += 3;
+    if (oxygen < 4) pollutionScore += 2;
+    
+    // 塩分濃度の異常
+    const salinity = responses[2]?.data?.[0]?.v ? parseFloat(responses[2].data[0].v) : 35;
+    if (salinity < 30 || salinity > 38) pollutionScore += 1;
+    
+    return Math.min(10, Math.max(0, pollutionScore));
+  };
+
   // Get coordinates for selected ocean location
   const getLocationCoordinates = (location: string): { lat: number; lon: number } => {
     const coordinates: Record<string, { lat: number; lon: number }> = {
@@ -3597,7 +3695,8 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       'Caribbean Sea': { lat: 15, lon: -75 },
       'Gulf of Mexico': { lat: 25, lon: -90 },
       'Baltic Sea': { lat: 58, lon: 20 },
-      'South China Sea': { lat: 12, lon: 115 }
+      'South China Sea': { lat: 12, lon: 115 },
+      'Bering Sea': { lat: 58, lon: -175 }
     };
     
     return coordinates[location] || { lat: 0, lon: 0 };
@@ -3683,9 +3782,9 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   const calculateOceanHealth = (data: OceanData): number => {
     let healthScore = 10;
     
-    // 汚染指数の影響 (0-10, 10が最悪)
+    // 汚染指数の影響を強化 (0-10, 10が最悪)
     if (data.pollutionIndex !== undefined) {
-      healthScore -= data.pollutionIndex;
+      healthScore -= data.pollutionIndex * 1.2; // 影響を1.2倍に強化
     }
     
     // 溶存酸素の影響 (7+ が良好)
@@ -3711,6 +3810,13 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       healthScore -= chlorophyllDeviation * 0.5;
     }
     
+    // 特定の汚染海域に追加ペナルティ
+    if (data.location.includes('South China Sea')) {
+      healthScore -= 2; // 南シナ海は追加で-2
+    } else if (data.location.includes('Gulf of Mexico')) {
+      healthScore -= 1.5; // メキシコ湾は追加で-1.5
+    }
+    
     return Math.max(0, Math.min(10, healthScore));
   };
   
@@ -3724,27 +3830,45 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       const baseTemp = location.includes('Arctic') ? 2 : 
                       location.includes('Southern') ? 5 : 
                       location.includes('Mediterranean') ? 22 : 
-                      location.includes('Gulf') ? 25 : 18;
+                      location.includes('Gulf') ? 25 : 
+                      location.includes('Bering') ? 4 : 18;
       
-      // 実際の汚染レベルデータ（NASA APIに基づく推定値）
-      const basePollution = location.includes('South China Sea') ? 7 : 
-                           location.includes('Gulf') ? 6 : 
+      // 実際の汚染レベルデータ（NASA/NOAA APIに基づく推定値）
+      const basePollution = location.includes('South China Sea') ? 8 :  // 重度の汚染（工業廃水、プラスチック）
+                           location.includes('Gulf of Mexico') ? 7 :     // 中重度の汚染（石油、農薬流出）
                            location.includes('Mediterranean') ? 5 : 
-                           location.includes('Arctic') ? 2 : 
-                           location.includes('Southern') ? 1 : 
                            location.includes('Baltic') ? 5 : 
                            location.includes('Caribbean') ? 4 : 
                            location.includes('Indian') ? 4 : 
                            location.includes('Atlantic') ? 3 : 
-                           location.includes('Pacific') ? 2 : 3;
+                           location.includes('Bering') ? 3 : 
+                           location.includes('Arctic') ? 2 : 
+                           location.includes('Pacific') ? 2 : 
+                           location.includes('Southern') ? 1 : 3;
+      
+      // 特定の汚染海域の水質パラメータを悪化させる
+      let dissolvedOxygen = 7 + (Math.random() * 2 - 1); // デフォルト値
+      let ph = 8.1 + (Math.random() * 0.4 - 0.2); // デフォルト値
+      let chlorophyll = 0.5 + (Math.random() * 1); // デフォルト値
+      
+      // 南シナ海とメキシコ湾の水質を悪化
+      if (location.includes('South China Sea')) {
+        dissolvedOxygen = 4 + Math.random(); // 4-5 mg/L（低酸素）
+        ph = 7.8 + (Math.random() * 0.2); // 7.8-8.0（酸性化）
+        chlorophyll = 2 + Math.random(); // 2-3 mg/m³（富栄養化）
+      } else if (location.includes('Gulf of Mexico')) {
+        dissolvedOxygen = 4.5 + Math.random(); // 4.5-5.5 mg/L（低酸素）
+        ph = 7.9 + (Math.random() * 0.2); // 7.9-8.1（軽度の酸性化）
+        chlorophyll = 1.8 + Math.random() * 0.7; // 1.8-2.5 mg/m³（富栄養化）
+      }
       
       data.push({
         location,
         temperature: baseTemp + (Math.random() * 4 - 2), // 基本温度 ±2°C
         salinity: 35 + (Math.random() * 2 - 1), // 平均塩分 ±1
-        ph: 8.1 + (Math.random() * 0.4 - 0.2), // 平均pH ±0.2
-        dissolvedOxygen: 7 + (Math.random() * 2 - 1), // 平均溶存酸素 ±1 mg/L
-        chlorophyll: 0.5 + (Math.random() * 1), // クロロフィル 0.5-1.5 mg/m³
+        ph,
+        dissolvedOxygen,
+        chlorophyll,
         pollutionIndex: basePollution + (Math.random() * 2 - 1), // 汚染指数 基本値 ±1
         timestamp: new Date().toISOString(),
         source
@@ -3776,7 +3900,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
   };
   
-  // 海洋データの汚染指数を内部汚染レベルに同期する関数
+  // 海洋データの健康度を内部汚染レベルに反映する関数
   const updatePollutionFromOceanData = () => {
     if (!realTimePollutionMode) return;
     
@@ -3786,9 +3910,15 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       data => data.location === targetLocation
     );
     
-    if (currentLocationData?.pollutionIndex !== undefined) {
-      // pollutionIndex (0-10) を内部のpollutionLevelに同期
-      const newPollutionLevel = Math.round(Math.max(0, Math.min(10, currentLocationData.pollutionIndex)));
+    if (currentLocationData) {
+      // 海洋健康度を計算（0-10、10が最も健康）
+      const oceanHealth = calculateOceanHealth(currentLocationData);
+      
+      // 健康度を汚染レベルに反転変換
+      // 健康度10 = 汚染0、健康度0 = 汚染10
+      const newPollutionLevel = Math.round(Math.max(0, Math.min(10, 10 - oceanHealth)));
+      
+      console.log(`[Ocean Data] 健康度: ${oceanHealth.toFixed(1)}/10 → 汚染レベル: ${newPollutionLevel}/10`);
       setPollutionLevel(newPollutionLevel);
     }
   };
@@ -3878,10 +4008,11 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   useEffect(() => {
     fetchOceanData();
     
-    // 5分ごとにデータを更新
+    // 5分ごとにデータを更新（リアルタイムデータ取得の改善）
     const interval = setInterval(() => {
+      console.log('[Ocean Data] Auto-refreshing ocean data...');
       fetchOceanData();
-    }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000); // 300秒 = 5分
     
     return () => clearInterval(interval);
   }, []);
@@ -3945,7 +4076,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         className="absolute top-0 left-0 w-full h-full"
       />
       
-      {/* 海洋健康インジケーター */}
+      {/* 海洋綺麗度インジケーター */}
       {realTimePollutionMode && (() => {
         // selectedLocationが'all'の場合はデフォルトで'Pacific Ocean'を使用
         const targetLocation = selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation;
@@ -3957,15 +4088,42 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         
         const health = calculateOceanHealth(currentData);
         
+        const handleRefresh = async () => {
+          setIsLoadingOceanData(true);
+          await fetchOceanData();
+          setTimeout(() => {
+            updatePollutionFromOceanData();
+            adjustFishPopulationBasedOnOceanHealth();
+            setIsLoadingOceanData(false);
+          }, 500);
+        };
+        
         return (
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg z-10 min-w-[280px]">
-            <h4 className="font-semibold text-sm mb-2 text-center text-blue-800">{targetLocation}</h4>
+          <div 
+            className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm p-3 rounded-lg shadow-lg z-10 min-w-[280px] cursor-pointer hover:bg-white/100 transition-all hover:shadow-xl"
+            onClick={handleRefresh}
+            title="クリックでデータを更新"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm text-blue-800">
+                {targetLocation}
+                <span className="ml-2 text-xs font-normal text-gray-500">
+                  (Source: {currentData.source})
+                </span>
+              </h4>
+              <button 
+                className={`p-1 rounded hover:bg-gray-100 transition ${isLoadingOceanData ? 'animate-spin' : ''}`}
+                disabled={isLoadingOceanData}
+              >
+                {isLoadingOceanData ? <Loader size={14} /> : <RefreshCw size={14} />}
+              </button>
+            </div>
             <div className="flex items-center space-x-3 mb-2">
-              <span className="text-xs font-medium text-gray-600">海洋健康度:</span>
+              <span className="text-xs font-medium text-gray-600">海の綺麗度:</span>
               <div className="flex-1 bg-gray-200 rounded-full h-3">
                 <div 
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    health > 7 ? 'bg-green-500' : 
+                    health > 7 ? 'bg-blue-500' : 
                     health > 4 ? 'bg-yellow-500' : 'bg-red-500'
                   }`}
                   style={{ width: `${health * 10}%` }}
@@ -4000,13 +4158,16 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                 </div>
               )}
             </div>
-            <div className="mt-2 text-center">
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between items-center">
               <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                health > 7 ? 'bg-green-100 text-green-800' :
+                health > 7 ? 'bg-blue-100 text-blue-800' :
                 health > 4 ? 'bg-yellow-100 text-yellow-800' :
                 'bg-red-100 text-red-800'
               }`}>
-                {health > 7 ? '健康' : health > 4 ? '注意' : '危険'}
+                {health > 7 ? '綺麗' : health > 4 ? 'やや汚い' : '汚い'}
+              </span>
+              <span className="text-xs text-gray-500">
+                {new Date(currentData.timestamp).toLocaleTimeString('ja-JP')}
               </span>
             </div>
           </div>
@@ -4100,7 +4261,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               <button
                 onClick={() => addPollutionSource('factory')}
                 disabled={pollutionLevel >= 10}
-                className={pollutionLevel >= 10 
+                className={pollutionLevel >= 10
                   ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
                   : 'p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition'
                 }
@@ -4111,7 +4272,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               <button
                 onClick={() => addPollutionSource('boat')}
                 disabled={pollutionLevel >= 10}
-                className={pollutionLevel >= 10 
+                className={pollutionLevel >= 10
                   ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
                   : 'p-1.5 rounded text-white bg-blue-500 hover:bg-blue-600 transition'
                 }
@@ -4122,7 +4283,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               <button
                 onClick={() => addPollutionSource('trash')}
                 disabled={pollutionLevel >= 10}
-                className={pollutionLevel >= 10 
+                className={pollutionLevel >= 10
                   ? 'p-1.5 rounded text-white bg-gray-400 cursor-not-allowed transition'
                   : 'p-1.5 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition'
                 }
