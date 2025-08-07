@@ -79,6 +79,19 @@ interface Bubble {
   color?: string; // Optional color for special bubbles
 }
 
+// パーティクルエフェクト用のインターフェース
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  type: 'sparkle' | 'splash' | 'cleanup';
+}
+
 // 汚染源のインターフェース
 interface PollutionSource {
   type: 'factory' | 'boat' | 'trash';
@@ -88,6 +101,32 @@ interface PollutionSource {
   active: boolean;
   pollutionRate: number;
   image: HTMLImageElement | null;
+}
+
+// クリーンアップミッション用のゴミアイテムのインターフェース
+interface TrashItem {
+  id: string;
+  type: 'bottle' | 'bag' | 'can' | 'generic';
+  x: number;
+  y: number;
+  size: number;
+  rotation: number;
+  bobOffset: number;
+  bobSpeed: number;
+  isBeingRemoved: boolean;
+  removalProgress: number;
+  points: number;
+  image: HTMLImageElement | null;
+}
+
+// クリーンアップミッションの状態
+interface CleanupMission {
+  isActive: boolean;
+  targetTrashCount: number;
+  removedTrashCount: number;
+  score: number;
+  timeRemaining: number;
+  isCompleted: boolean;
 }
 
 // クイズの質問と回答のインターフェース
@@ -167,6 +206,31 @@ interface TranslationStrings {
   noDataAvailable: string;
   allSources: string;
   allLocations: string;
+  
+  // クリーンアップミッション関連
+  startCleanupMission: string;
+  stopCleanupMission: string;
+  cleanupMissionTitle: string;
+  trashRemoved: string;
+  missionScore: string;
+  timeRemaining: string;
+  missionCompleted: string;
+  congratulations: string;
+  clickTrashToRemove: string;
+  missionProgress: string;
+  pointsEarned: string;
+  restartMission: string;
+  
+  // 教育的メッセージ
+  trashEducation: string;
+  bottleEducation: string;
+  bagEducation: string;
+  canEducation: string;
+  genericEducation: string;
+  greatJob: string;
+  keepGoing: string;
+  almostDone: string;
+  excellentWork: string;
 }
 
 interface Translations {
@@ -252,7 +316,30 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
   });
   const [quizCategory, setQuizCategory] = useState<'pollution' | 'ecosystem' | 'all'>('all');
   const [quizCompleted, setQuizCompleted] = useState(false);
+  
+  // クリーンアップミッション関連の状態
+  const [cleanupMission, setCleanupMission] = useState<CleanupMission>({
+    isActive: false,
+    targetTrashCount: 15,
+    removedTrashCount: 0,
+    score: 0,
+    timeRemaining: 180, // 3分
+    isCompleted: false
+  });
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
+  const trashImagesRef = useRef<{[key: string]: HTMLImageElement | null}>({
+    bottle: null,
+    bag: null,
+    can: null,
+    generic: null
+  });
+  const particlesRef = useRef<Particle[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [educationalMessage, setEducationalMessage] = useState<{
+    visible: boolean;
+    message: string;
+    encouragement: string;
+  }>({ visible: false, message: '', encouragement: '' });
   const categories = ['all', 'pollution', 'ecosystem'];
   const [showControlPanel, setShowControlPanel] = useState(true); // コントロールパネルの表示/非表示を管理する状態
   const [showFish, setShowFish] = useState(true); // 魚の表示/非表示を管理する状態
@@ -366,6 +453,26 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     'South China Sea',
     'Bering Sea'
   ];
+  
+  // 海域名の日本語翻訳マッピング
+  const oceanNameTranslations: Record<string, string> = {
+    'Pacific Ocean': '太平洋',
+    'Atlantic Ocean': '大西洋',
+    'Indian Ocean': 'インド洋',
+    'Arctic Ocean': '北極海',
+    'Southern Ocean': '南極海',
+    'Gulf of Mexico': 'メキシコ湾',
+    'Mediterranean Sea': '地中海',
+    'Caribbean Sea': 'カリブ海',
+    'South China Sea': '南シナ海',
+    'Bering Sea': 'ベーリング海',
+    'all': 'すべて'
+  };
+  
+  // 海域名を日本語に変換する関数
+  const getOceanNameInJapanese = (name: string): string => {
+    return oceanNameTranslations[name] || name;
+  };
 
   // クイズの質問リスト
   const allQuizQuestions: QuizQuestion[] = [
@@ -1721,6 +1828,12 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     
     touchStartRef.current = { x, y };
 
+    // クリーンアップミッション中はゴミのクリック判定を行う
+    if (cleanupMission.isActive) {
+      checkTrashClick(x, y);
+      return; // ゴミクリック時は魚への影響は行わない
+    }
+
     // Create ripple effect with bubbles
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
@@ -1808,6 +1921,334 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
     }
     touchStartRef.current = null;
   };
+
+  // マウスクリック用のハンドラー
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!cleanupMission.isActive) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+    
+    checkTrashClick(x, y);
+  };
+
+  // ゴミアイテムとの衝突判定
+  const checkTrashClick = (x: number, y: number) => {
+    if (!cleanupMission.isActive) return;
+
+    for (let i = 0; i < trashItems.length; i++) {
+      const trash = trashItems[i];
+      if (trash.isBeingRemoved) continue;
+
+      const distance = Math.sqrt(
+        Math.pow(x - trash.x, 2) + Math.pow(y - trash.y, 2)
+      );
+
+      if (distance <= trash.size / 2 + 10) { // 10px のクリック許容範囲
+        // ゴミを削除処理開始
+        removeTrashItem(i);
+        break; // 一度に一つのゴミだけ削除
+      }
+    }
+  };
+
+  // 教育的メッセージを表示する関数
+  const showEducationalMessage = (trashType: string, removedCount: number, targetCount: number) => {
+    const educationKeys = {
+      bottle: 'bottleEducation',
+      bag: 'bagEducation', 
+      can: 'canEducation',
+      generic: 'genericEducation'
+    };
+    
+    const progressRatio = removedCount / targetCount;
+    let encouragementKey;
+    
+    if (progressRatio < 0.25) {
+      encouragementKey = 'keepGoing';
+    } else if (progressRatio < 0.75) {
+      encouragementKey = 'greatJob';
+    } else if (progressRatio < 1) {
+      encouragementKey = 'almostDone';
+    } else {
+      encouragementKey = 'excellentWork';
+    }
+    
+    const educationKey = educationKeys[trashType as keyof typeof educationKeys] || 'genericEducation';
+    
+    setEducationalMessage({
+      visible: true,
+      message: t(educationKey as keyof TranslationStrings),
+      encouragement: t(encouragementKey as keyof TranslationStrings)
+    });
+    
+    // 3秒後に自動で閉じる
+    setTimeout(() => {
+      setEducationalMessage(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+
+  // パーティクルエフェクトを生成する関数
+  const createTrashRemovalEffect = (x: number, y: number, trashType: string) => {
+    const colors = {
+      bottle: ['#4A90E2', '#7ED321', '#F5A623'],
+      bag: ['#D0021B', '#F5A623', '#BD10E0'],
+      can: ['#B8E986', '#50E3C2', '#4A90E2'],
+      generic: ['#9013FE', '#F5A623', '#7ED321']
+    };
+    
+    const particleColors = colors[trashType as keyof typeof colors] || colors.generic;
+    
+    // クリーンアップパーティクル（上向きに散らばる）
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.5;
+      const speed = 2 + Math.random() * 4;
+      
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1, // 少し上向きに
+        size: 2 + Math.random() * 3,
+        life: 60,
+        maxLife: 60,
+        color: particleColors[Math.floor(Math.random() * particleColors.length)],
+        type: 'cleanup'
+      });
+    }
+    
+    // スプラッシュエフェクト
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const speed = 1 + Math.random() * 2;
+      
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 3 + Math.random() * 2,
+        life: 40,
+        maxLife: 40,
+        color: 'rgba(135, 206, 235, 0.8)', // 水色
+        type: 'splash'
+      });
+    }
+  };
+
+  // 水質改善時のキラキラエフェクト
+  const createWaterQualityImprovement = () => {
+    const canvasWidth = canvasSize.width;
+    const canvasHeight = canvasSize.height;
+    
+    // ランダムな位置にキラキラパーティクルを生成
+    for (let i = 0; i < 15; i++) {
+      particlesRef.current.push({
+        x: Math.random() * canvasWidth,
+        y: Math.random() * canvasHeight,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: -0.5 - Math.random() * 0.5, // ゆっくり上に
+        size: 1 + Math.random() * 2,
+        life: 120,
+        maxLife: 120,
+        color: 'rgba(255, 255, 255, 0.9)',
+        type: 'sparkle'
+      });
+    }
+  };
+
+  // ミッション完了時の祝福エフェクト
+  const createCelebrationEffect = () => {
+    const canvasWidth = canvasSize.width;
+    const canvasHeight = canvasSize.height;
+    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+    
+    // 大量のお祝いパーティクルを生成
+    for (let i = 0; i < 100; i++) {
+      particlesRef.current.push({
+        x: Math.random() * canvasWidth,
+        y: -20,
+        vx: (Math.random() - 0.5) * 6,
+        vy: Math.random() * 2 + 1,
+        size: 3 + Math.random() * 6,
+        life: 180 + Math.random() * 120,
+        maxLife: 180 + Math.random() * 120,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        type: 'cleanup'
+      });
+    }
+    
+    // 特別なキラキラエフェクト
+    for (let i = 0; i < 50; i++) {
+      setTimeout(() => {
+        particlesRef.current.push({
+          x: Math.random() * canvasWidth,
+          y: Math.random() * canvasHeight,
+          vx: (Math.random() - 0.5) * 2,
+          vy: -1 - Math.random(),
+          size: 2 + Math.random() * 4,
+          life: 240,
+          maxLife: 240,
+          color: 'rgba(255, 215, 0, 0.9)',
+          type: 'sparkle'
+        });
+      }, i * 50);
+    }
+  };
+
+  // ゴミアイテムを削除する関数
+  const removeTrashItem = (index: number) => {
+    const newTrashItems = [...trashItems];
+    const removedTrash = newTrashItems[index];
+    
+    // パーティクルエフェクトを生成
+    createTrashRemovalEffect(removedTrash.x, removedTrash.y, removedTrash.type);
+    
+    // 削除アニメーション開始
+    newTrashItems[index] = {
+      ...removedTrash,
+      isBeingRemoved: true,
+      removalProgress: 0
+    };
+
+    // アニメーション処理
+    const animateRemoval = () => {
+      const currentTrash = newTrashItems[index];
+      if (currentTrash.removalProgress < 1) {
+        currentTrash.removalProgress += 0.1;
+        setTrashItems([...newTrashItems]);
+        requestAnimationFrame(animateRemoval);
+      } else {
+        // 完全に削除
+        const finalTrashItems = newTrashItems.filter((_, i) => i !== index);
+        setTrashItems(finalTrashItems);
+        
+        // ミッション進捗更新
+        setCleanupMission(prev => {
+          const newState = {
+            ...prev,
+            removedTrashCount: prev.removedTrashCount + 1,
+            score: prev.score + removedTrash.points
+          };
+          
+          // 教育的メッセージを表示
+          showEducationalMessage(removedTrash.type, newState.removedTrashCount, newState.targetTrashCount);
+          
+          // ミッション完了チェック
+          if (newState.removedTrashCount >= newState.targetTrashCount) {
+            newState.isCompleted = true;
+            createCelebrationEffect();
+          }
+          
+          return newState;
+        });
+
+        // 汚染レベルを減らし、魚の健康を改善
+        setPollutionLevel(prev => {
+          const newPollutionLevel = Math.max(0, prev - 0.3);
+          
+          // 汚染レベルが下がった場合、魚の健康を改善
+          if (newPollutionLevel < prev) {
+            improveMarineLife();
+            createWaterQualityImprovement();
+          }
+          
+          return newPollutionLevel;
+        });
+      }
+    };
+
+    setTrashItems(newTrashItems);
+    animateRemoval();
+  };
+
+  // 海洋生物の健康を改善する関数（ゴミ除去時）
+  const improveMarineLife = () => {
+    const fishes = fishesRef.current;
+    
+    fishes.forEach(fish => {
+      // 死にかけの魚を蘇生させる
+      if (fish.isDying && fish.healthLevel > 0.2) {
+        fish.isDying = false;
+        fish.deathTimer = 0;
+        fish.healthLevel = Math.min(1, fish.healthLevel + 0.3);
+        fish.opacity = fish.healthLevel;
+        
+        // 蘇生エフェクトとして泡を発生
+        for (let i = 0; i < 8; i++) {
+          bubblesRef.current.push({
+            x: fish.x + (Math.random() - 0.5) * 15,
+            y: fish.y + fish.yOffset,
+            size: 2 + Math.random() * 3,
+            speed: 1 + Math.random() * 1.5,
+            wobbleOffset: Math.random() * Math.PI * 2,
+            wobbleSpeed: 1.5 + Math.random(),
+            color: 'rgba(0, 255, 100, 0.6)' // 緑色の回復泡
+          });
+        }
+      } else if (!fish.isDying) {
+        // 健康な魚はさらに元気になる
+        fish.healthLevel = Math.min(1, fish.healthLevel + 0.1);
+        fish.opacity = fish.healthLevel;
+        fish.speedMultiplier = Math.min(1.5, fish.speedMultiplier + 0.1);
+        
+        // 元気になったら興奮状態にする
+        fish.isExcited = true;
+        fish.excitementTimer = 60;
+      }
+    });
+  };
+
+  // クリーンアップミッションを開始する関数
+  const startCleanupMission = () => {
+    setCleanupMission({
+      isActive: true,
+      targetTrashCount: 15,
+      removedTrashCount: 0,
+      score: 0,
+      timeRemaining: 180,
+      isCompleted: false
+    });
+    spawnTrashItems();
+  };
+
+  // クリーンアップミッションを停止する関数
+  const stopCleanupMission = () => {
+    setCleanupMission(prev => ({
+      ...prev,
+      isActive: false,
+      isCompleted: false
+    }));
+    setTrashItems([]);
+  };
+
+  // ミッションタイマーの処理
+  useEffect(() => {
+    if (!cleanupMission.isActive || cleanupMission.isCompleted) return;
+
+    const timer = setInterval(() => {
+      setCleanupMission(prev => {
+        if (prev.timeRemaining <= 1) {
+          // 時間切れ
+          return {
+            ...prev,
+            timeRemaining: 0,
+            isActive: false
+          };
+        }
+        return {
+          ...prev,
+          timeRemaining: prev.timeRemaining - 1
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cleanupMission.isActive, cleanupMission.isCompleted]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -2421,12 +2862,24 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         ctx.font = '14px Arial';
         ctx.fillText(`汚染レベル: ${pollutionLevel}/10`, 10, 20);
         ctx.fillText(`死んだ魚: ${deadFishCount} 匹`, 10, 40);
+        
+        // クリーンアップミッション情報表示
+        if (cleanupMission.isActive) {
+          ctx.fillText(`ゴミ回収: ${cleanupMission.removedTrashCount}/${cleanupMission.targetTrashCount}`, 10, 60);
+          ctx.fillText(`スコア: ${cleanupMission.score}`, 10, 80);
+        }
       } else {
         // 汚染レベルが0の場合でも表示
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = '14px Arial';
         ctx.fillText(`汚染レベル: ${pollutionLevel}/10`, 10, 20);
         ctx.fillText(`死んだ魚: ${deadFishCount} 匹`, 10, 40);
+        
+        // クリーンアップミッション情報表示
+        if (cleanupMission.isActive) {
+          ctx.fillText(`ゴミ回収: ${cleanupMission.removedTrashCount}/${cleanupMission.targetTrashCount}`, 10, 60);
+          ctx.fillText(`スコア: ${cleanupMission.score}`, 10, 80);
+        }
       }
 
       // 泡を描画
@@ -2501,6 +2954,86 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
           ctx.restore();
         }
       });
+
+      // クリーンアップミッション中のゴミアイテムを描画
+      if (cleanupMission.isActive) {
+        trashItems.forEach((trash, index) => {
+          if (trash.image && !trash.isBeingRemoved) {
+            ctx.save();
+            
+            // ゴミの浮遊アニメーション
+            const bobY = Math.sin(Date.now() * trash.bobSpeed + trash.bobOffset) * 3;
+            
+            ctx.translate(trash.x, trash.y + bobY);
+            ctx.rotate(trash.rotation);
+            ctx.globalAlpha = 1 - trash.removalProgress;
+            
+            const size = trash.size * (1 - trash.removalProgress * 0.5);
+            ctx.drawImage(
+              trash.image,
+              -size / 2,
+              -size / 2,
+              size,
+              size
+            );
+            
+            ctx.restore();
+          }
+        });
+      }
+
+      // パーティクルエフェクトを描画
+      particlesRef.current.forEach((particle, index) => {
+        // パーティクルの更新
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.life--;
+        
+        // 重力効果（splash と cleanup タイプ）
+        if (particle.type === 'splash' || particle.type === 'cleanup') {
+          particle.vy += 0.1; // 重力
+        }
+        
+        // パーティクルの描画
+        if (particle.life > 0) {
+          ctx.save();
+          
+          const alpha = particle.life / particle.maxLife;
+          const size = particle.size * (particle.type === 'sparkle' ? 
+            (0.5 + 0.5 * Math.sin(Date.now() * 0.01 + index)) : // キラキラ効果
+            alpha); // フェードアウト
+          
+          if (particle.type === 'sparkle') {
+            // キラキラエフェクト（星型）
+            ctx.fillStyle = particle.color.replace(/[\d\.]+\)$/g, `${alpha})`);
+            ctx.translate(particle.x, particle.y);
+            ctx.rotate(Date.now() * 0.001 + index);
+            
+            // 星型の描画
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+              const angle = (i * Math.PI * 2) / 5;
+              const radius = size;
+              if (i === 0) ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+              else ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+            }
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            // 通常の丸いパーティクル
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          
+          ctx.restore();
+        }
+      });
+      
+      // 期限切れのパーティクルを削除
+      particlesRef.current = particlesRef.current.filter(particle => particle.life > 0);
 
       // 魚を描画
       if (showFish) {
@@ -2577,6 +3110,50 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       }
     }, 1000);
   }, []);
+
+  // クリーンアップミッション用のゴミ画像を読み込む
+  useEffect(() => {
+    const loadTrashImage = (src: string, key: string) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => {
+        trashImagesRef.current[key] = img;
+      };
+    };
+
+    // ゴミの種類別に画像を読み込む
+    loadTrashImage('https://cdn-icons-png.flaticon.com/512/3389/3389081.png', 'bottle'); // ペットボトル
+    loadTrashImage('https://cdn-icons-png.flaticon.com/512/2942/2942909.png', 'bag'); // ビニール袋
+    loadTrashImage('https://cdn-icons-png.flaticon.com/512/2942/2942854.png', 'can'); // 缶
+    loadTrashImage('https://cdn-icons-png.flaticon.com/512/3141/3141684.png', 'generic'); // 一般ごみ
+  }, []);
+
+  // ゴミアイテムを生成する関数
+  const spawnTrashItems = () => {
+    const newTrashItems: TrashItem[] = [];
+    const trashTypes: Array<'bottle' | 'bag' | 'can' | 'generic'> = ['bottle', 'bag', 'can', 'generic'];
+    const points = { bottle: 10, bag: 15, can: 8, generic: 5 };
+
+    for (let i = 0; i < cleanupMission.targetTrashCount; i++) {
+      const type = trashTypes[Math.floor(Math.random() * trashTypes.length)];
+      newTrashItems.push({
+        id: `trash-${i}-${Date.now()}`,
+        type,
+        x: Math.random() * (canvasSize.width - 60) + 30,
+        y: Math.random() * (canvasSize.height - 100) + 50,
+        size: 20 + Math.random() * 15,
+        rotation: Math.random() * Math.PI * 2,
+        bobOffset: Math.random() * Math.PI * 2,
+        bobSpeed: 0.02 + Math.random() * 0.02,
+        isBeingRemoved: false,
+        removalProgress: 0,
+        points: points[type],
+        image: trashImagesRef.current[type]
+      });
+    }
+
+    setTrashItems(newTrashItems);
+  };
 
   // 汚染源からの汚染効果を処理
   useEffect(() => {
@@ -2749,6 +3326,31 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       noDataAvailable: "利用可能なデータがありません",
       allSources: "すべてのソース",
       allLocations: "すべての場所",
+      
+      // クリーンアップミッション関連
+      startCleanupMission: "クリーンアップミッション開始",
+      stopCleanupMission: "ミッション終了",
+      cleanupMissionTitle: "海のクリーンアップミッション",
+      trashRemoved: "回収したゴミ",
+      missionScore: "スコア",
+      timeRemaining: "残り時間",
+      missionCompleted: "ミッション完了！",
+      congratulations: "おめでとうございます！",
+      clickTrashToRemove: "ゴミをクリックして回収してください",
+      missionProgress: "進捗",
+      pointsEarned: "獲得ポイント",
+      restartMission: "ミッション再開始",
+      
+      // 教育的メッセージ
+      trashEducation: "海洋汚染について学ぼう！",
+      bottleEducation: "プラスチックボトルは海で分解されるのに450年かかります！リサイクルしましょう。",
+      bagEducation: "ビニール袋は海洋生物が誤飲しやすく危険です。エコバッグを使いましょう。",
+      canEducation: "アルミ缶はリサイクル率が高い素材です。必ず分別しましょう。",
+      genericEducation: "どんな小さなゴミでも海の生態系に影響します。ポイ捨てはやめましょう。",
+      greatJob: "よくできました！",
+      keepGoing: "その調子で頑張って！",
+      almostDone: "もう少しです！",
+      excellentWork: "素晴らしい働きです！",
     },
     en: {
       // Buttons
@@ -2802,9 +3404,9 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       showFish: "Show Fish",
       
       // Ocean data related
-      oceanData: "Ocean Data",
-      dataSource: "Data Source",
-      location: "Location",
+      oceanData: "海洋データ",
+      dataSource: "データソース",
+      location: "場所",
       temperature: "Temperature",
       salinity: "Salinity",
       ph: "pH Level",
@@ -2817,6 +3419,31 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
       noDataAvailable: "No data available",
       allSources: "All Sources",
       allLocations: "All Locations",
+      
+      // クリーンアップミッション関連
+      startCleanupMission: "Start Cleanup Mission",
+      stopCleanupMission: "Stop Mission",
+      cleanupMissionTitle: "Ocean Cleanup Mission",
+      trashRemoved: "Trash Removed",
+      missionScore: "Score",
+      timeRemaining: "Time Remaining",
+      missionCompleted: "Mission Completed!",
+      congratulations: "Congratulations!",
+      clickTrashToRemove: "Click on trash to remove it",
+      missionProgress: "Progress",
+      pointsEarned: "Points Earned",
+      restartMission: "Restart Mission",
+      
+      // 教育的メッセージ
+      trashEducation: "Learn about Ocean Pollution!",
+      bottleEducation: "Plastic bottles take 450 years to decompose in the ocean! Please recycle.",
+      bagEducation: "Plastic bags are dangerous for marine life who mistake them for food. Use eco-bags!",
+      canEducation: "Aluminum cans have high recycling rates. Always separate them properly!",
+      genericEducation: "Even small trash affects marine ecosystems. Don't litter!",
+      greatJob: "Great job!",
+      keepGoing: "Keep going!",
+      almostDone: "Almost done!",
+      excellentWork: "Excellent work!",
     }
   };
 
@@ -3314,6 +3941,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={handleCanvasClick}
         className="absolute top-0 left-0 w-full h-full"
       />
       
@@ -3504,6 +4132,27 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               </button>
             </div>
             
+            {/* クリーンアップミッションボタン */}
+            <div className="flex items-center gap-1">
+              {!cleanupMission.isActive ? (
+                <button
+                  onClick={startCleanupMission}
+                  className="p-1.5 rounded text-white bg-green-500 hover:bg-green-600 transition"
+                  title={t('startCleanupMission')}
+                >
+                  <Trash2 size={14} />
+                </button>
+              ) : (
+                <button
+                  onClick={stopCleanupMission}
+                  className="p-1.5 rounded text-white bg-red-500 hover:bg-red-600 transition"
+                  title={t('stopCleanupMission')}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            
             <div className="flex items-center gap-1">
               <label
                 className={`p-1.5 rounded text-white transition cursor-pointer ${
@@ -3614,7 +4263,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                   className="w-full p-2 border border-gray-300 rounded text-sm"
                 >
                   {availableLocations.filter(loc => loc !== 'all').map(location => (
-                    <option key={location} value={location}>{location}</option>
+                    <option key={location} value={location}>{getOceanNameInJapanese(location)}</option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-600 mt-1">
@@ -3651,7 +4300,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               >
                 <option value="all">{t('allLocations')}</option>
                 {availableLocations.filter(loc => loc !== 'all').map(location => (
-                  <option key={location} value={location}>{location}</option>
+                  <option key={location} value={location}>{getOceanNameInJapanese(location)}</option>
                 ))}
               </select>
             </div>
@@ -3863,6 +4512,106 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
                 <span className="text-xs text-gray-500">死んだ魚:</span>
                 <span className="text-xs font-medium text-red-500">{deadFishCount} 匹</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* クリーンアップミッション状態表示 */}
+        {cleanupMission.isActive && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-xl z-20">
+            <div className="text-center">
+              <h3 className="font-bold text-green-600 mb-2">{t('cleanupMissionTitle')}</h3>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">{t('trashRemoved')}:</span>
+                  <div className="font-bold text-green-600">
+                    {cleanupMission.removedTrashCount}/{cleanupMission.targetTrashCount}
+                  </div>
+                </div>
+                
+                <div>
+                  <span className="text-gray-600">{t('missionScore')}:</span>
+                  <div className="font-bold text-blue-600">{cleanupMission.score}</div>
+                </div>
+              </div>
+              
+              <div className="mt-2">
+                <span className="text-gray-600">{t('timeRemaining')}:</span>
+                <div className="font-bold text-red-600">
+                  {Math.floor(cleanupMission.timeRemaining / 60)}:{(cleanupMission.timeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+              
+              <div className="mt-2 bg-gray-200 rounded-full h-2">
+                <div 
+                  className="h-full bg-green-500 rounded-full transition-all duration-300"
+                  style={{ width: `${(cleanupMission.removedTrashCount / cleanupMission.targetTrashCount) * 100}%` }}
+                ></div>
+              </div>
+              
+              <div className="mt-2 text-xs text-gray-600">
+                {t('clickTrashToRemove')}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ミッション完了通知 */}
+        {cleanupMission.isCompleted && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-green-400 to-blue-500 text-white p-8 rounded-2xl shadow-2xl z-30 text-center max-w-lg animate-pulse">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+              <h2 className="text-3xl font-bold mb-4 flex items-center justify-center gap-2">
+                🎉 {t('missionCompleted')} 🎉
+              </h2>
+              
+              <div className="text-xl mb-4 font-semibold">
+                {t('excellentWork')}
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4 mb-4">
+                <div className="grid grid-cols-2 gap-4 text-lg">
+                  <div>
+                    <div className="font-bold text-yellow-200">🗑️ {t('trashRemoved')}</div>
+                    <div className="text-2xl font-black">{cleanupMission.removedTrashCount}</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-yellow-200">⭐ {t('pointsEarned')}</div>
+                    <div className="text-2xl font-black">{cleanupMission.score}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-sm mb-6 leading-relaxed bg-white/10 rounded-lg p-3">
+                🌊 あなたの頑張りで海がきれいになり、魚たちが元気に泳げるようになりました！<br/>
+                🐟 海洋保護は小さな行動から始まります。ありがとうございます！
+              </div>
+              
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={startCleanupMission}
+                  className="px-6 py-3 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition font-bold shadow-lg"
+                >
+                  🔄 {t('restartMission')}
+                </button>
+                <button
+                  onClick={stopCleanupMission}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition font-bold shadow-lg"
+                >
+                  ❌ {t('stopCleanupMission')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 教育的メッセージ表示 */}
+        {educationalMessage.visible && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded-lg shadow-2xl z-40 max-w-md animate-bounce">
+            <div className="text-center">
+              <h4 className="font-bold text-lg mb-2">{educationalMessage.encouragement}</h4>
+              <p className="text-sm leading-relaxed">{educationalMessage.message}</p>
+              <div className="mt-2 text-xs opacity-75">{t('trashEducation')}</div>
             </div>
           </div>
         )}

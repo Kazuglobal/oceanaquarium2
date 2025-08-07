@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Map } from 'lucide-react';
+import { Map, Maximize2, Minimize2 } from 'lucide-react';
 import { MAPBOX_ACCESS_TOKEN } from '../constants/apiKeys';
 
 interface OceanMapProps {
@@ -30,9 +30,27 @@ const OceanMap: React.FC<OceanMapProps> = ({
   const markersRef = useRef<{ marker: mapboxgl.Marker; location: string }[]>([]);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const mapInitializedRef = useRef<boolean>(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [mapHeight, setMapHeight] = useState(300);
+  const [mapWidth, setMapWidth] = useState(100); // パーセントで指定
   
   // Mapboxアクセストークン
   const mapboxToken = MAPBOX_ACCESS_TOKEN;
+  
+  // 海域名の日本語マッピング
+  const oceanNameJapanese: Record<string, string> = {
+    'Pacific Ocean': '太平洋',
+    'Atlantic Ocean': '大西洋',
+    'Indian Ocean': 'インド洋',
+    'Southern Ocean': '南極海',
+    'Arctic Ocean': '北極海',
+    'Mediterranean Sea': '地中海',
+    'South China Sea': '南シナ海',
+    'Gulf of Mexico': 'メキシコ湾',
+    'Caribbean Sea': 'カリブ海',
+    'Baltic Sea': 'バルト海',
+    'Bering Sea': 'ベーリング海'
+  };
   
   // 各海域の座標
   const oceanLocations: LocationCoordinate[] = [
@@ -91,7 +109,7 @@ const OceanMap: React.FC<OceanMapProps> = ({
           .setLngLat([location.lon, location.lat])
           .setHTML(`
             <div style="padding: 5px;">
-              <h3 style="margin: 0; font-size: 16px; font-weight: bold;">${location.name}</h3>
+              <h3 style="margin: 0; font-size: 16px; font-weight: bold;">${oceanNameJapanese[location.name] || location.name}</h3>
               <p style="margin: 5px 0 0; font-size: 12px;">緯度: ${location.lat.toFixed(2)}, 経度: ${location.lon.toFixed(2)}</p>
             </div>
           `)
@@ -150,6 +168,15 @@ const OceanMap: React.FC<OceanMapProps> = ({
     }
   }, [showMap]);
   
+  // 地図のサイズが変更されたときにリサイズ
+  useEffect(() => {
+    if (map.current) {
+      setTimeout(() => {
+        map.current?.resize();
+      }, 100);
+    }
+  }, [isExpanded, mapHeight, mapWidth]);
+  
   // 選択された海域に地図を移動
   const centerMapOnSelectedLocation = (locationName: string) => {
     if (!map.current) return;
@@ -184,37 +211,85 @@ const OceanMap: React.FC<OceanMapProps> = ({
   }, [selectedLocation, showMap]);
   
   return (
-    <div className="relative">
+    <div className={`relative ${isExpanded ? 'fixed inset-4 z-50 bg-white rounded-lg shadow-2xl p-4' : ''}`}>
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-sm font-medium text-gray-700">海洋マップ</h3>
-        <button
-          onClick={onToggleMap}
-          className={`p-1.5 rounded text-white ${showMap ? 'bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'} transition`}
-          title={showMap ? '地図を非表示' : '地図を表示'}
-        >
-          <Map size={14} />
-        </button>
+        <div className="flex gap-1">
+          {showMap && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1.5 rounded text-white bg-green-600 hover:bg-green-700 transition"
+              title={isExpanded ? '通常サイズに戻す' : '地図を拡大'}
+            >
+              {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+          )}
+          <button
+            onClick={onToggleMap}
+            className={`p-1.5 rounded text-white ${showMap ? 'bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'} transition`}
+            title={showMap ? '地図を非表示' : '地図を表示'}
+          >
+            <Map size={14} />
+          </button>
+        </div>
       </div>
       
       {showMap && (
-        <div style={{ width: '100%', height: '300px', marginBottom: '20px' }}>
-          {mapboxToken ? (
-            <div 
-              ref={mapContainer} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                borderRadius: '8px', 
-                overflow: 'hidden',
-                border: '1px solid #ccc'
-              }} 
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
-              Mapbox APIキーが設定されていません
+        <>
+          {!isExpanded && (
+            <div className="mb-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">地図の高さ:</label>
+                <input
+                  type="range"
+                  min="200"
+                  max="600"
+                  step="50"
+                  value={mapHeight}
+                  onChange={(e) => setMapHeight(Number(e.target.value))}
+                  className="w-32"
+                />
+                <span className="text-xs text-gray-600">{mapHeight}px</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">地図の幅:</label>
+                <input
+                  type="range"
+                  min="50"
+                  max="100"
+                  step="10"
+                  value={mapWidth}
+                  onChange={(e) => setMapWidth(Number(e.target.value))}
+                  className="w-32"
+                />
+                <span className="text-xs text-gray-600">{mapWidth}%</span>
+              </div>
             </div>
           )}
-        </div>
+          <div style={{ 
+            width: isExpanded ? '100%' : `${mapWidth}%`, 
+            height: isExpanded ? 'calc(100vh - 120px)' : `${mapHeight}px`, 
+            marginBottom: '20px',
+            margin: isExpanded ? '0' : '0 auto'
+          }}>
+            {mapboxToken ? (
+              <div 
+                ref={mapContainer} 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  borderRadius: '8px', 
+                  overflow: 'hidden',
+                  border: '1px solid #ccc'
+                }} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
+                Mapbox APIキーが設定されていません
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
