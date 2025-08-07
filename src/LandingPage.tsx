@@ -192,75 +192,142 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
         </div>
       </section>
 
-      {/* Demo Video Section */}
+      {/* Demo Video Section - Multiple Tutorials */}
       <section className="py-20 bg-gradient-to-br from-purple-50 to-pink-50">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
             <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              実際のゲーム体験をご覧ください
+              機能別チュートリアル動画
             </span>
           </h2>
-          <p className="text-center text-gray-600 mb-12 text-lg">
-            Ocean Adventureの魅力的な世界を動画でチェック
+          <p className="text-center text-gray-600 mb-8 text-lg">
+            Ocean Adventureの主要機能を動画で学ぼう！
           </p>
           
-          <div className="max-w-4xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
-              <video 
-                ref={videoRef}
-                className="w-full h-auto"
-                controls
-                poster="/api/placeholder/1280/720"
-                preload="metadata"
-                onPlay={() => setIsVideoPlaying(true)}
-                onPause={() => setIsVideoPlaying(false)}
-                onEnded={() => setIsVideoPlaying(false)}
-              >
-                <source src="/videos/demo-video.mov" type="video/mp4" />
-                お使いのブラウザは動画タグをサポートしていません。
-              </video>
-              
-              {/* Play button overlay - only show when video is not playing */}
-              {!isVideoPlaying && (
-                <div 
-                  className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity duration-300 cursor-pointer hover:bg-black/30"
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.play();
-                    }
-                  }}
-                >
-                  <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110">
-                    <Play className="w-10 h-10 text-purple-600 ml-1" fill="currentColor" />
-                  </div>
+          {/* 動画が再生できない場合の案内 */}
+          <div className="max-w-4xl mx-auto mb-8">
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
                 </div>
-              )}
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    <strong>動画が再生できない場合：</strong> MOV形式の動画はSafariブラウザで最適に再生されます。
+                    <a href="/video-instructions.html" target="_blank" className="ml-2 underline font-semibold hover:text-yellow-900">
+                      動画ページで詳細を確認 →
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Video Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {/* 魚を追加 */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <div className="relative">
+                <video 
+                  className="w-full h-auto"
+                  controls
+                  poster="/api/placeholder/640/360"
+                  preload="metadata"
+                >
+                  <source src="/videos/addfish.mov" type="video/quicktime" />
+                  <source src="/videos/addfish.mp4" type="video/mp4" />
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
+              </div>
+              <div className="p-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">🐠 魚を追加する方法</h3>
+                <p className="text-gray-600 text-sm mb-3">新しい魚を追加ボタンから、カラフルな魚を海に追加する手順を解説</p>
+                <a href="/videos/addfish.mov" download className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  ダウンロード
+                </a>
+              </div>
             </div>
             
-            {/* Video Features */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Fish className="text-white" size={32} />
-                </div>
-                <h3 className="font-semibold mb-1">海の生き物たち</h3>
-                <p className="text-sm text-gray-600">カラフルな魚との楽しい冒険</p>
+            {/* 海をきれいに */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <div className="relative">
+                <video 
+                  className="w-full h-auto"
+                  controls
+                  poster="/api/placeholder/640/360"
+                  preload="metadata"
+                >
+                  <source src="/videos/crean-ocean.mov" type="video/quicktime" />
+                  <source src="/videos/crean-ocean.mp4" type="video/mp4" />
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
               </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                  <Sparkles className="text-white" size={32} />
-                </div>
-                <h3 className="font-semibold mb-1">インタラクティブ体験</h3>
-                <p className="text-sm text-gray-600">タッチで反応する楽しい仕掛け</p>
+              <div className="p-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">🌊 海をきれいにする</h3>
+                <p className="text-gray-600 text-sm mb-3">環境問題を楽しく学びながら、海をきれいにする方法</p>
+                <a href="/videos/crean-ocean.mov" download className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  ダウンロード
+                </a>
               </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-pink-500 to-orange-600 rounded-xl flex items-center justify-center">
-                  <Heart className="text-white" size={32} />
-                </div>
-                <h3 className="font-semibold mb-1">教育的コンテンツ</h3>
-                <p className="text-sm text-gray-600">遊びながら学べる仕組み</p>
+            </div>
+            
+            {/* リアルタイムデータ */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <div className="relative">
+                <video 
+                  className="w-full h-auto"
+                  controls
+                  poster="/api/placeholder/640/360"
+                  preload="metadata"
+                >
+                  <source src="/videos/realtime-data.mov" type="video/quicktime" />
+                  <source src="/videos/realtime-data.mp4" type="video/mp4" />
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
+              </div>
+              <div className="p-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">📊 リアルタイムデータ</h3>
+                <p className="text-gray-600 text-sm mb-3">実際の海洋データをリアルタイムで表示する機能の使い方</p>
+                <a href="/videos/realtime-data.mov" download className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  ダウンロード
+                </a>
+              </div>
+            </div>
+            
+            {/* 宇宙のせかい */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <div className="relative">
+                <video 
+                  className="w-full h-auto"
+                  controls
+                  poster="/api/placeholder/640/360"
+                  preload="metadata"
+                >
+                  <source src="/videos/space.mov" type="video/quicktime" />
+                  <source src="/videos/space.mp4" type="video/mp4" />
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
+              </div>
+              <div className="p-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">🚀 宇宙のせかい</h3>
+                <p className="text-gray-600 text-sm mb-3">宇宙船を飛ばして、惑星を探検する宇宙ワールドの楽しみ方</p>
+                <a href="/videos/space.mov" download className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  ダウンロード
+                </a>
               </div>
             </div>
           </div>
@@ -323,85 +390,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
         </div>
       </section>
 
-      {/* Video Demo Section */}
-      <section className="py-20 bg-gradient-to-b from-white to-blue-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 text-gray-800">
-              🎥 実際のゲームプレイを見てみよう
-            </h2>
-            <p className="text-xl text-gray-600">
-              Ocean Adventureの魅力を動画でチェック
-            </p>
-          </div>
-          
-          <div className="max-w-4xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black">
-              <div className="aspect-w-16 aspect-h-9" style={{ paddingBottom: '56.25%' }}>
-                <video 
-                  className="absolute inset-0 w-full h-full"
-                  controls 
-                  poster="/images/ocean-thumbnail.jpg"
-                  preload="metadata"
-                >
-                  <source src="/videos/demo-video.mov" type="video/quicktime" />
-                  <source src="/videos/demo-video.mp4" type="video/mp4" />
-                  お使いのブラウザは動画タグをサポートしていません。
-                </video>
-              </div>
-            </div>
-            
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Fish className="text-blue-600" size={24} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-800">魚をアップロード</h4>
-                    <p className="text-sm text-gray-600">自分で描いた魚を泳がせる</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <Sparkles className="text-green-600" size={24} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-800">海をきれいに</h4>
-                    <p className="text-sm text-gray-600">環境問題を楽しく学ぶ</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Rocket className="text-purple-600" size={24} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-800">宇宙も探検</h4>
-                    <p className="text-sm text-gray-600">宇宙船を飛ばそう</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="text-center mt-8">
-              <a 
-                href="/ocean-adventure-complete-guide.html" 
-                target="_blank"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-full hover:shadow-lg transition-all transform hover:scale-105"
-              >
-                <Play size={20} />
-                詳しい使い方を見る
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Features Section */}
       <section id="features" className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">

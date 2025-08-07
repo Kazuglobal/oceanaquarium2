@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動画テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .video-test {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background: #ffe0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            padding: 10px;
+            background: #e0ffe0;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ocean Adventure 動画テストページ</h1>
+    
+    <div class="video-test">
+        <h2>1. 魚を追加する方法 (addfish.mov)</h2>
+        <video controls id="video1">
+            <source src="/videos/addfish.mov" type="video/quicktime">
+            <source src="/videos/addfish.mp4" type="video/mp4">
+            動画を再生できません
+        </video>
+        <div id="status1"></div>
+    </div>
+    
+    <div class="video-test">
+        <h2>2. 海をきれいにする (crean-ocean.mov)</h2>
+        <video controls id="video2">
+            <source src="/videos/crean-ocean.mov" type="video/quicktime">
+            <source src="/videos/crean-ocean.mp4" type="video/mp4">
+            動画を再生できません
+        </video>
+        <div id="status2"></div>
+    </div>
+    
+    <div class="video-test">
+        <h2>3. リアルタイムデータ (realtime-data.mov)</h2>
+        <video controls id="video3">
+            <source src="/videos/realtime-data.mov" type="video/quicktime">
+            <source src="/videos/realtime-data.mp4" type="video/mp4">
+            動画を再生できません
+        </video>
+        <div id="status3"></div>
+    </div>
+    
+    <div class="video-test">
+        <h2>4. 宇宙のせかい (space.mov)</h2>
+        <video controls id="video4">
+            <source src="/videos/space.mov" type="video/quicktime">
+            <source src="/videos/space.mp4" type="video/mp4">
+            動画を再生できません
+        </video>
+        <div id="status4"></div>
+    </div>
+    
+    <script>
+        // 各動画の状態をチェック
+        document.addEventListener('DOMContentLoaded', function() {
+            for (let i = 1; i <= 4; i++) {
+                const video = document.getElementById('video' + i);
+                const status = document.getElementById('status' + i);
+                
+                video.addEventListener('loadedmetadata', function() {
+                    status.innerHTML = '<div class="success">✓ 動画が正常に読み込まれました (幅: ' + video.videoWidth + 'px, 高さ: ' + video.videoHeight + 'px)</div>';
+                });
+                
+                video.addEventListener('error', function(e) {
+                    const sources = video.getElementsByTagName('source');
+                    let errorMsg = '<div class="error">✗ 動画の読み込みに失敗しました<br>';
+                    for (let source of sources) {
+                        errorMsg += '- ' + source.src + '<br>';
+                    }
+                    errorMsg += '</div>';
+                    status.innerHTML = errorMsg;
+                });
+                
+                video.addEventListener('canplay', function() {
+                    console.log('Video ' + i + ' can play');
+                });
+            }
+            
+            // ファイルの存在確認
+            const videoFiles = [
+                '/videos/addfish.mov',
+                '/videos/crean-ocean.mov', 
+                '/videos/realtime-data.mov',
+                '/videos/space.mov'
+            ];
+            
+            console.log('動画ファイルの確認:');
+            videoFiles.forEach(file => {
+                fetch(file, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log('✓ ' + file + ' (サイズ: ' + response.headers.get('content-length') + ' bytes)');
+                        } else {
+                            console.error('✗ ' + file + ' (ステータス: ' + response.status + ')');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('✗ ' + file + ' (エラー: ' + error.message + ')');
+                    });
+            });
+        });
+    </script>
+</body>
+</html>

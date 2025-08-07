@@ -1084,64 +1084,71 @@
         <section class="video-section">
             <div class="section-title">
                 <div class="section-number">🎥</div>
-                <h2>実際のゲームプレイ動画</h2>
+                <h2>機能別チュートリアル動画</h2>
             </div>
             
             <p style="font-size: 1.1em; line-height: 1.8; color: #555; margin-bottom: 30px;">
-                Ocean Adventureの実際のプレイ動画をご覧ください。
-                海のせかいで魚たちと遊んだり、宇宙のせかいで宇宙船を飛ばしたりする様子がわかります。
+                「魚を追加」機能の使い方を動画でご覧ください。
+                新しい魚を追加ボタンから、カラフルな魚を海に追加する方法がわかります。
             </p>
-            
-            <!-- メインデモ動画 -->
-            <div class="video-container">
-                <video controls preload="metadata" poster="/images/ocean-thumbnail.jpg">
-                    <source src="/videos/demo-video.mov" type="video/quicktime">
-                    <source src="/videos/demo-video.mp4" type="video/mp4">
-                    お使いのブラウザは動画タグをサポートしていません。
-                </video>
-            </div>
             
             <!-- 機能別動画グリッド -->
             <h3 style="color: #0077be; margin: 30px 0 20px; font-size: 1.4em;">🎬 機能別チュートリアル動画</h3>
             
-            <div class="video-grid">
-                <div class="video-card">
-                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
-                        <div class="play-button">▶</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <!-- 魚を追加 -->
+                <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div class="video-container" style="margin: 0;">
+                        <video controls preload="metadata" style="width: 100%; height: auto;">
+                            <source src="/videos/addfish.mov" type="video/quicktime">
+                            お使いのブラウザは動画タグをサポートしていません。
+                        </video>
                     </div>
-                    <div class="video-info">
-                        <h4>🐟 魚を追加する方法</h4>
-                        <p>自分で描いた魚をアップロードして、海に泳がせる方法を紹介します。</p>
-                    </div>
-                </div>
-                
-                <div class="video-card">
-                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
-                        <div class="play-button">▶</div>
-                    </div>
-                    <div class="video-info">
-                        <h4>🌊 海をきれいにする</h4>
-                        <p>汚れた海をきれいにして、魚たちが元気に泳ぐ様子を見てみましょう。</p>
+                    <div style="padding: 15px;">
+                        <h4 style="color: #333; margin: 0 0 8px; font-size: 1.1em;">🐠 魚を追加する方法</h4>
+                        <p style="color: #666; font-size: 0.9em; margin: 0;">新しい魚を追加ボタンから、カラフルな魚を海に追加する手順</p>
                     </div>
                 </div>
                 
-                <div class="video-card">
-                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
-                        <div class="play-button">▶</div>
+                <!-- 海をきれいに -->
+                <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div class="video-container" style="margin: 0;">
+                        <video controls preload="metadata" style="width: 100%; height: auto;">
+                            <source src="/videos/crean-ocean.mov" type="video/quicktime">
+                            お使いのブラウザは動画タグをサポートしていません。
+                        </video>
                     </div>
-                    <div class="video-info">
-                        <h4>🌍 リアルタイムデータ</h4>
-                        <p>実際の海のデータを使って、世界中の海を探検する方法です。</p>
+                    <div style="padding: 15px;">
+                        <h4 style="color: #333; margin: 0 0 8px; font-size: 1.1em;">🌊 海をきれいにする</h4>
+                        <p style="color: #666; font-size: 0.9em; margin: 0;">環境問題を楽しく学びながら、海をきれいにする方法</p>
                     </div>
                 </div>
                 
-                <div class="video-card">
-                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
-                        <div class="play-button">▶</div>
+                <!-- リアルタイムデータ -->
+                <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div class="video-container" style="margin: 0;">
+                        <video controls preload="metadata" style="width: 100%; height: auto;">
+                            <source src="/videos/realtime-data.mov" type="video/quicktime">
+                            お使いのブラウザは動画タグをサポートしていません。
+                        </video>
                     </div>
-                    <div class="video-info">
-                        <h4>🚀 宇宙のせかい</h4>
-                        <p>宇宙船や飛行機を飛ばして、宇宙を冒険する様子を紹介します。</p>
+                    <div style="padding: 15px;">
+                        <h4 style="color: #333; margin: 0 0 8px; font-size: 1.1em;">📊 リアルタイムデータ</h4>
+                        <p style="color: #666; font-size: 0.9em; margin: 0;">実際の海洋データをリアルタイムで表示する機能</p>
+                    </div>
+                </div>
+                
+                <!-- 宇宙のせかい -->
+                <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div class="video-container" style="margin: 0;">
+                        <video controls preload="metadata" style="width: 100%; height: auto;">
+                            <source src="/videos/space.mov" type="video/quicktime">
+                            お使いのブラウザは動画タグをサポートしていません。
+                        </video>
+                    </div>
+                    <div style="padding: 15px;">
+                        <h4 style="color: #333; margin: 0 0 8px; font-size: 1.1em;">🚀 宇宙のせかい</h4>
+                        <p style="color: #666; font-size: 0.9em; margin: 0;">宇宙船を飛ばして、惑星を探検する宇宙ワールド</p>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, Upload, Plus, Minus, Fish as FishIcon, Maximize2, Minimize2, Settings, BookOpen, HelpCircle, Factory, Anchor, Trash, Globe, X, Info, Eye, EyeOff, Database, BarChart2, RefreshCw, Loader } from 'lucide-react';
-import OceanMap from './components/OceanMap';
+// OceanMapを動的インポートに変更
+const OceanMap = React.lazy(() => import('./components/OceanMap'));
 import { NASA_API_KEY } from './constants/apiKeys';
 
 interface Fish {
@@ -4219,13 +4220,14 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
           
           {/* 地図表示 */}
           <div className="mb-4">
-            <OceanMap 
-              selectedLocation={selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation}
-              onLocationSelect={(location) => {
-                console.log(`Location selected from map: ${location}`);
-                setSelectedLocation(location);
-                
-                // リアルタイムモードがONの場合、即座にデータを更新
+            <React.Suspense fallback={<div className="flex items-center justify-center p-8"><Loader className="animate-spin" size={32} /></div>}>
+              <OceanMap 
+                selectedLocation={selectedLocation === 'all' ? 'Pacific Ocean' : selectedLocation}
+                onLocationSelect={(location) => {
+                  console.log(`Location selected from map: ${location}`);
+                  setSelectedLocation(location);
+                  
+                  // リアルタイムモードがONの場合、即座にデータを更新
                 if (realTimePollutionMode) {
                   setTimeout(() => {
                     updatePollutionFromOceanData();
@@ -4237,6 +4239,7 @@ const App: React.FC<AppProps> = ({ env = 'ocean' }) => {
               showMap={showMap}
               onToggleMap={() => setShowMap(!showMap)}
             />
+            </React.Suspense>
           </div>
           
           <div className="flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md">

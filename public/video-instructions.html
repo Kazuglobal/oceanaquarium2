@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Adventure - 動画チュートリアル</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2em;
+            margin-bottom: 40px;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .video-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+        }
+        
+        .video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .video-info {
+            padding: 20px;
+        }
+        
+        .video-title {
+            font-size: 1.4em;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .video-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.2s ease;
+        }
+        
+        .download-link:hover {
+            transform: scale(1.05);
+        }
+        
+        .notice {
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .notice h2 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .notice ul {
+            margin-left: 30px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease;
+            z-index: 100;
+        }
+        
+        .back-button:hover {
+            transform: scale(1.05);
+        }
+        
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .subtitle {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-button">← メインページに戻る</a>
+    
+    <div class="container">
+        <h1>🎬 Ocean Adventure チュートリアル動画</h1>
+        <p class="subtitle">各機能の使い方を動画で学びましょう</p>
+        
+        <div class="notice">
+            <h2>⚠️ 動画が再生できない場合</h2>
+            <ul>
+                <li><strong>Safari</strong>ブラウザをお使いください（MOV形式に最適）</li>
+                <li>または、下の「ダウンロード」ボタンから動画をダウンロードしてご覧ください</li>
+                <li>Google ChromeやFirefoxでは、一部の動画形式が再生できない場合があります</li>
+            </ul>
+        </div>
+        
+        <div class="video-grid">
+            <!-- 魚を追加 -->
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <video controls preload="metadata">
+                        <source src="/videos/addfish.mov" type="video/quicktime">
+                        <source src="/videos/addfish.mov" type="video/mp4">
+                        動画を再生するにはSafariブラウザをご利用ください
+                    </video>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">
+                        <span>🐠</span>
+                        魚を追加する方法
+                    </h3>
+                    <p class="video-description">
+                        「新しい魚を追加」ボタンを使って、カラフルな魚を海に追加する手順を詳しく解説します。
+                        魚のサイズ調整や数の変更方法も紹介。
+                    </p>
+                    <a href="/videos/addfish.mov" download class="download-link">
+                        📥 動画をダウンロード
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 海をきれいに -->
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <video controls preload="metadata">
+                        <source src="/videos/crean-ocean.mov" type="video/quicktime">
+                        <source src="/videos/crean-ocean.mov" type="video/mp4">
+                        動画を再生するにはSafariブラウザをご利用ください
+                    </video>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">
+                        <span>🌊</span>
+                        海をきれいにする
+                    </h3>
+                    <p class="video-description">
+                        環境問題について楽しく学びながら、汚れた海をきれいにする方法を紹介。
+                        ゴミを片付けて魚たちが元気に泳ぐ様子を見てみましょう。
+                    </p>
+                    <a href="/videos/crean-ocean.mov" download class="download-link">
+                        📥 動画をダウンロード
+                    </a>
+                </div>
+            </div>
+            
+            <!-- リアルタイムデータ -->
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <video controls preload="metadata">
+                        <source src="/videos/realtime-data.mov" type="video/quicktime">
+                        <source src="/videos/realtime-data.mov" type="video/mp4">
+                        動画を再生するにはSafariブラウザをご利用ください
+                    </video>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">
+                        <span>📊</span>
+                        リアルタイムデータ機能
+                    </h3>
+                    <p class="video-description">
+                        実際の海洋データをリアルタイムで表示する機能の使い方。
+                        世界中の海の温度や状態を確認できます。
+                    </p>
+                    <a href="/videos/realtime-data.mov" download class="download-link">
+                        📥 動画をダウンロード
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 宇宙のせかい -->
+            <div class="video-card">
+                <div class="video-wrapper">
+                    <video controls preload="metadata">
+                        <source src="/videos/space.mov" type="video/quicktime">
+                        <source src="/videos/space.mov" type="video/mp4">
+                        動画を再生するにはSafariブラウザをご利用ください
+                    </video>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">
+                        <span>🚀</span>
+                        宇宙のせかい
+                    </h3>
+                    <p class="video-description">
+                        宇宙船を操縦して惑星を探検！
+                        宇宙ワールドの楽しい機能と操作方法を解説します。
+                    </p>
+                    <a href="/videos/space.mov" download class="download-link">
+                        📥 動画をダウンロード
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="notice" style="background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);">
+            <h2 style="color: #2d3436;">💡 ヒント</h2>
+            <ul>
+                <li>動画をフルスクリーンで見るには、動画プレーヤーの右下のボタンをクリック</li>
+                <li>ダウンロードした動画は、QuickTime PlayerやVLCメディアプレーヤーで再生できます</li>
+                <li>詳しい操作方法は<a href="/ocean-adventure-complete-guide.html" style="color: #0984e3;">使い方ガイド</a>もご覧ください</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
