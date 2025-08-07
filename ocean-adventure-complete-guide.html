@@ -290,6 +290,108 @@
             border-radius: 20px 20px 0 0;
         }
         
+        .video-section {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .video-container video,
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .video-card {
+            background: #f8fbff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .video-card .video-thumbnail {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+        }
+        
+        .video-card .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #0077be;
+            transition: all 0.3s;
+        }
+        
+        .video-card:hover .play-button {
+            background: white;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .video-card .video-info {
+            padding: 20px;
+        }
+        
+        .video-card h4 {
+            color: #0077be;
+            margin-bottom: 10px;
+        }
+        
+        .video-card p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 767px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .video-section {
+                padding: 20px;
+            }
+        }
+        
         .quick-nav {
             position: fixed;
             right: 20px;
@@ -976,6 +1078,102 @@
             </div>
         </section>
     </div>
+
+    <!-- 実際のゲーム体験動画セクション -->
+    <div class="container">
+        <section class="video-section">
+            <div class="section-title">
+                <div class="section-number">🎥</div>
+                <h2>実際のゲームプレイ動画</h2>
+            </div>
+            
+            <p style="font-size: 1.1em; line-height: 1.8; color: #555; margin-bottom: 30px;">
+                Ocean Adventureの実際のプレイ動画をご覧ください。
+                海のせかいで魚たちと遊んだり、宇宙のせかいで宇宙船を飛ばしたりする様子がわかります。
+            </p>
+            
+            <!-- メインデモ動画 -->
+            <div class="video-container">
+                <video controls preload="metadata" poster="/images/ocean-thumbnail.jpg">
+                    <source src="/videos/demo-video.mov" type="video/quicktime">
+                    <source src="/videos/demo-video.mp4" type="video/mp4">
+                    お使いのブラウザは動画タグをサポートしていません。
+                </video>
+            </div>
+            
+            <!-- 機能別動画グリッド -->
+            <h3 style="color: #0077be; margin: 30px 0 20px; font-size: 1.4em;">🎬 機能別チュートリアル動画</h3>
+            
+            <div class="video-grid">
+                <div class="video-card">
+                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
+                        <div class="play-button">▶</div>
+                    </div>
+                    <div class="video-info">
+                        <h4>🐟 魚を追加する方法</h4>
+                        <p>自分で描いた魚をアップロードして、海に泳がせる方法を紹介します。</p>
+                    </div>
+                </div>
+                
+                <div class="video-card">
+                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
+                        <div class="play-button">▶</div>
+                    </div>
+                    <div class="video-info">
+                        <h4>🌊 海をきれいにする</h4>
+                        <p>汚れた海をきれいにして、魚たちが元気に泳ぐ様子を見てみましょう。</p>
+                    </div>
+                </div>
+                
+                <div class="video-card">
+                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
+                        <div class="play-button">▶</div>
+                    </div>
+                    <div class="video-info">
+                        <h4>🌍 リアルタイムデータ</h4>
+                        <p>実際の海のデータを使って、世界中の海を探検する方法です。</p>
+                    </div>
+                </div>
+                
+                <div class="video-card">
+                    <div class="video-thumbnail" onclick="playVideo(this, '/videos/demo-video.mov')">
+                        <div class="play-button">▶</div>
+                    </div>
+                    <div class="video-info">
+                        <h4>🚀 宇宙のせかい</h4>
+                        <p>宇宙船や飛行機を飛ばして、宇宙を冒険する様子を紹介します。</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tip-box" style="margin-top: 30px;">
+                <h4>💡 動画が再生されない場合</h4>
+                <ul>
+                    <li>ブラウザを最新版にアップデートしてください</li>
+                    <li>インターネット接続を確認してください</li>
+                    <li>再生ボタンをクリックしてください</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+    
+    <script>
+        // 動画プレイヤー機能
+        function playVideo(element, videoSrc) {
+            const container = element;
+            const video = document.createElement('video');
+            video.src = videoSrc;
+            video.controls = true;
+            video.autoplay = true;
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
+            container.innerHTML = '';
+            container.appendChild(video);
+        }
+    </script>
 
     <!-- フッター -->
     <div class="footer">

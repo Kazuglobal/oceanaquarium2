@@ -323,6 +323,86 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
         </div>
       </section>
 
+      {/* Video Demo Section */}
+      <section className="py-20 bg-gradient-to-b from-white to-blue-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4 text-gray-800">
+              🎥 実際のゲームプレイを見てみよう
+            </h2>
+            <p className="text-xl text-gray-600">
+              Ocean Adventureの魅力を動画でチェック
+            </p>
+          </div>
+          
+          <div className="max-w-4xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black">
+              <div className="aspect-w-16 aspect-h-9" style={{ paddingBottom: '56.25%' }}>
+                <video 
+                  className="absolute inset-0 w-full h-full"
+                  controls 
+                  poster="/images/ocean-thumbnail.jpg"
+                  preload="metadata"
+                >
+                  <source src="/videos/demo-video.mov" type="video/quicktime" />
+                  <source src="/videos/demo-video.mp4" type="video/mp4" />
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
+              </div>
+            </div>
+            
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Fish className="text-blue-600" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">魚をアップロード</h4>
+                    <p className="text-sm text-gray-600">自分で描いた魚を泳がせる</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="text-green-600" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">海をきれいに</h4>
+                    <p className="text-sm text-gray-600">環境問題を楽しく学ぶ</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-xl transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Rocket className="text-purple-600" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">宇宙も探検</h4>
+                    <p className="text-sm text-gray-600">宇宙船を飛ばそう</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-center mt-8">
+              <a 
+                href="/ocean-adventure-complete-guide.html" 
+                target="_blank"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-full hover:shadow-lg transition-all transform hover:scale-105"
+              >
+                <Play size={20} />
+                詳しい使い方を見る
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="container mx-auto px-4">
