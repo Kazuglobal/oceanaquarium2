@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Adventure - 完全操作ガイド</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(180deg, #0077be 0%, #00a8e8 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 30px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #0077be, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-menu a {
+            color: #0077be;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        
+        .nav-menu a:hover {
+            background: #0077be;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .intro-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .intro-card h2 {
+            color: #0077be;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        .intro-card p {
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #00d4ff;
+        }
+        
+        .section-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #0077be, #00d4ff);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+        
+        .section h2 {
+            color: #0077be;
+            font-size: 1.8em;
+        }
+        
+        .step-container {
+            display: grid;
+            gap: 25px;
+        }
+        
+        .step {
+            background: #f8fbff;
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 4px solid #00d4ff;
+        }
+        
+        .step h3 {
+            color: #0077be;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            background: #00d4ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+        
+        .step p {
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .screenshot {
+            background: #e8f4ff;
+            border: 2px dashed #0077be;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .screenshot-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        .screenshot-label {
+            color: #0077be;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .screenshot-desc {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .button-example {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #0077be, #00d4ff);
+            color: white;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 5px;
+            box-shadow: 0 4px 15px rgba(0,119,190,0.3);
+            transition: transform 0.3s;
+        }
+        
+        .button-example:hover {
+            transform: translateY(-2px);
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .warning-box h4 {
+            color: #ff6b35;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tip-box {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .tip-box h4 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-card h4 {
+            color: #0077be;
+            margin-bottom: 10px;
+        }
+        
+        .feature-card p {
+            color: #666;
+            font-size: 0.95em;
+        }
+        
+        .icon-large {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 40px 20px;
+            text-align: center;
+            margin-top: 60px;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .quick-nav {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            z-index: 99;
+        }
+        
+        .quick-nav a {
+            display: block;
+            padding: 8px;
+            color: #0077be;
+            text-decoration: none;
+            font-size: 0.9em;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background 0.3s;
+        }
+        
+        .quick-nav a:hover {
+            background: #f0f9ff;
+        }
+        
+        @media (max-width: 1024px) {
+            .quick-nav {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .nav-menu {
+                display: none;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- クイックナビゲーション -->
+    <div class="quick-nav">
+        <a href="/" style="background: #f0f9ff; font-weight: bold;">🏠 ホームへ</a>
+        <a href="#start">🎯 はじめに</a>
+        <a href="#basic">🐟 基本操作</a>
+        <a href="#fish">🎨 魚の追加</a>
+        <a href="#control">⚙️ 調整機能</a>
+        <a href="#pollution">🌊 環境機能</a>
+        <a href="#realtime">📊 リアルデータ</a>
+        <a href="#space">🚀 宇宙のせかい</a>
+        <a href="#tips">💡 ヒント</a>
+    </div>
+
+    <!-- ヘッダー -->
+    <div class="header">
+        <div class="header-content">
+            <h1 style="cursor: pointer;" onclick="window.location.href='/'">
+                🌊 Ocean Adventure
+                <span style="font-size: 0.5em; opacity: 0.8;">完全操作ガイド</span>
+            </h1>
+            <nav class="nav-menu">
+                <a href="/" style="background: #0077be; color: white; padding: 8px 16px; border-radius: 20px;">🏠 ホーム</a>
+                <a href="#start">スタート</a>
+                <a href="#fish">魚の追加</a>
+                <a href="#control">操作</a>
+                <a href="#tips">ヒント</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- イントロダクション -->
+        <div class="intro-card">
+            <h2>🎮 Ocean Adventure へようこそ！</h2>
+            <p>
+                このガイドでは、Ocean Adventureの「海のせかい」と「宇宙のせかい」の詳しい使い方を説明します。
+                自分で描いた魚や宇宙船をアップロードして、オリジナルの世界を作ることができる、創造的なアプリケーションです。
+            </p>
+            <div class="feature-grid" style="margin-top: 30px;">
+                <div class="feature-card">
+                    <div class="icon-large">🐟</div>
+                    <h4>オリジナル魚を追加</h4>
+                    <p>自分で描いた魚をアップロードして泳がせられます</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-large">🎨</div>
+                    <h4>背景自動削除</h4>
+                    <p>アップロード時に背景を自動で透明化</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-large">🌍</div>
+                    <h4>リアル海洋データ</h4>
+                    <p>実際の海のデータを見ながら学習</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- セクション1: スタート方法 -->
+        <section class="section" id="start">
+            <div class="section-title">
+                <div class="section-number">1</div>
+                <h2>アプリを開いて海のせかいへ</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">1️⃣</span>
+                        Ocean Adventureを開く
+                    </h3>
+                    <p>
+                        ブラウザでOcean Adventureを開くと、5つの魔法のワールドが表示されます。
+                        それぞれのワールドはカラフルなカードで表現されています。
+                    </p>
+                    <div class="screenshot">
+                        <div class="screenshot-icon">🖼️</div>
+                        <div class="screenshot-label">トップページ</div>
+                        <div class="screenshot-desc">5つの魔法のワールドが並んでいます</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">2️⃣</span>
+                        「海のせかい」を選択
+                    </h3>
+                    <p>
+                        青い海のカード「海のせかい」をクリックして、海の世界に入ります。
+                        美しい青い海が画面いっぱいに広がります。
+                    </p>
+                    <a href="/" class="button-example" style="text-decoration: none;">🌊 海のせかいへ行く</a>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">3️⃣</span>
+                        画面を拡大する
+                    </h3>
+                    <p>
+                        左上のパネルにある言語切り替え表示の隣の拡大ボタンを押すと、画面が大きくなります。
+                        これで操作がしやすくなります。
+                    </p>
+                    <div class="tip-box">
+                        <h4>💡 ヒント</h4>
+                        <p>拡大ボタンは通常ひろがるアイコンで表示されています。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション2: 魚の追加 -->
+        <section class="section" id="fish">
+            <div class="section-title">
+                <div class="section-number">2</div>
+                <h2>自分で描いた魚を追加する</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🎨</span>
+                        魚の絵を準備する
+                    </h3>
+                    <p>
+                        パソコンやスマホで描いた魚の絵を用意します。JPG、PNG形式がおすすめです。
+                    </p>
+                    <div class="warning-box">
+                        <h4>⚠️ 重要：背景について</h4>
+                        <ul>
+                            <li>アプリには背景を自動で消す機能がありますが、魚の絵によっては背景が残ることがあります</li>
+                            <li>より綺麗に泳がせたい場合は、事前に無料の背景削除サイト（remove.bgなど）で背景を削除してからアップロードすることをお勧めします</li>
+                            <li>透明背景のPNG形式が最も綺麗に表示されます</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">📤</span>
+                        「新しい魚を追加」をクリック
+                    </h3>
+                    <p>
+                        画面左下にある「新しい魚を追加」ボタンをクリックします。
+                        ファイル選択ダイアログが開きます。
+                    </p>
+                    <button class="button-example">➕ 新しい魚を追加</button>
+                    <div class="screenshot">
+                        <div class="screenshot-icon">📁</div>
+                        <div class="screenshot-label">ファイル選択画面</div>
+                        <div class="screenshot-desc">描いた魚の画像ファイルを選択します</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🐠</span>
+                        魚が海に追加される
+                    </h3>
+                    <p>
+                        選択した魚の絵が自動的に処理され、海の中を泳ぎ始めます。
+                        背景が自動で削除され、魚だけが海を泳ぎます。
+                    </p>
+                    <div class="tip-box">
+                        <h4>🎯 上手に泳がせるコツ</h4>
+                        <ul>
+                            <li>魚は横向きに描くと自然に泳ぎます</li>
+                            <li>明るい色の魚は海でよく目立ちます</li>
+                            <li>複数の魚を追加して賑やかな海を作りましょう</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション3: 魚のコントロール -->
+        <section class="section" id="control">
+            <div class="section-title">
+                <div class="section-number">3</div>
+                <h2>魚のサイズと数を調整する</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">📏</span>
+                        魚を大きくする方法
+                    </h3>
+                    <p>
+                        右下にある「100%」の表示を右クリック（またはスライド）して、パーセンテージを大きくすると魚が大きくなります。
+                    </p>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>50%</h4>
+                            <p>小さめサイズ</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>100%</h4>
+                            <p>標準サイズ</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>200%</h4>
+                            <p>大きめサイズ</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🔢</span>
+                        魚の数を増やす・減らす
+                    </h3>
+                    <p>
+                        「魚を増やす/減らす」の＋−ボタンを使って、魚の数を調整できます。
+                    </p>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <button class="button-example">➖ 減らす</button>
+                        <span style="margin: 0 20px; font-size: 1.2em;">魚の数: 5</span>
+                        <button class="button-example">➕ 増やす</button>
+                    </div>
+                    <p>
+                        同じ魚を複数泳がせることで、群れのような演出も可能です。
+                    </p>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🎮</span>
+                        その他のコントロール
+                    </h3>
+                    <p>
+                        魚追加ボタンの右にあるボタンは特別な機能で、通常は使用しなくて大丈夫です。
+                        これらは海の環境を学習するための機能です。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション4: 環境機能 -->
+        <section class="section" id="pollution">
+            <div class="section-title">
+                <div class="section-number">4</div>
+                <h2>海の環境を学ぶ機能</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🏭</span>
+                        汚染機能（学習用）
+                    </h3>
+                    <p>
+                        「汚染を追加」「船を追加」「工場を追加」ボタンをクリックすると、海が汚れて魚が消えてしまいます。
+                        これは環境問題を学ぶための機能です。
+                    </p>
+                    <div class="warning-box">
+                        <h4>⚠️ 注意</h4>
+                        <p>これらのボタンを押すと魚が見えなくなりますが、心配しないでください。すぐに復活させることができます。</p>
+                    </div>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <button class="button-example" style="background: linear-gradient(45deg, #666, #999);">🏭 汚染を追加</button>
+                        <button class="button-example" style="background: linear-gradient(45deg, #666, #999);">🚢 船を追加</button>
+                        <button class="button-example" style="background: linear-gradient(45deg, #666, #999);">🏭 工場を追加</button>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">✨</span>
+                        海をきれいにする
+                    </h3>
+                    <p>
+                        「海をきれいにする」ボタンを押すと、汚れた海がきれいになり、魚が復活します。
+                    </p>
+                    <button class="button-example" style="background: linear-gradient(45deg, #4caf50, #8bc34a);">🌊 海をきれいにする</button>
+                    <div class="tip-box">
+                        <h4>💡 学習ポイント</h4>
+                        <p>海の汚染と浄化を体験することで、環境保護の大切さを学ぶことができます。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション5: リアルタイムデータ -->
+        <section class="section" id="realtime">
+            <div class="section-title">
+                <div class="section-number">5</div>
+                <h2>リアル海洋データモード</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">📊</span>
+                        リアルデータモードを起動
+                    </h3>
+                    <p>
+                        右上の「リアル海洋データモード」ボタンをクリックすると、実際の海のデータを見ることができます。
+                    </p>
+                    <button class="button-example">📊 リアル海洋データモード</button>
+                    <div class="screenshot">
+                        <div class="screenshot-icon">🌍</div>
+                        <div class="screenshot-label">海域選択画面</div>
+                        <div class="screenshot-desc">世界中の海から選択できます</div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🗺️</span>
+                        海域を選ぶ
+                    </h3>
+                    <p>
+                        表示される選択肢から、探検したい海域を選びます。
+                    </p>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>太平洋</h4>
+                            <p>世界最大の海</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>大西洋</h4>
+                            <p>ヨーロッパとアメリカの間</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>インド洋</h4>
+                            <p>暖かい南の海</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🔍</span>
+                        地図を拡大する
+                    </h3>
+                    <p>
+                        地図表示ボタンを押すと、世界地図が表示され、拡大することもできます。
+                        地図上で海域をクリックして選ぶこともできます。
+                    </p>
+                    <div class="tip-box">
+                        <h4>🌏 リアルデータの見方</h4>
+                        <ul>
+                            <li>海の温度や汚染度が色で表示されます</li>
+                            <li>NASAやNOAAの実際のデータを使用しています</li>
+                            <li>魚が消えたら「海をきれいにする」ボタンで復活させます</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション6: 宇宙のせかい -->
+        <section class="section" id="space">
+            <div class="section-title">
+                <div class="section-number">6</div>
+                <h2>宇宙のせかいで遊ぶ</h2>
+            </div>
+            
+            <div class="step-container">
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🚀</span>
+                        宇宙のせかいへ移動
+                    </h3>
+                    <p>
+                        更新ボタン（または「F5」キー）を押してホーム画面に戻り、「宇宙のせかい」を選択します。
+                    </p>
+                    <a href="/" class="button-example" style="text-decoration: none;">🌌 宇宙のせかいへ行く</a>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">✈️</span>
+                        宇宙船や飛行機を飛ばす
+                    </h3>
+                    <p>
+                        海のせかいと同じように、自分で描いた宇宙船や飛行機をアップロードして飛ばすことができます。
+                        UFOや、なんと魚も宇宙で飛ばすことができます！
+                    </p>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="icon-large">🚀</div>
+                            <h4>宇宙船</h4>
+                        </div>
+                        <div class="feature-card">
+                            <div class="icon-large">✈️</div>
+                            <h4>飛行機</h4>
+                        </div>
+                        <div class="feature-card">
+                            <div class="icon-large">🛸</div>
+                            <h4>UFO</h4>
+                        </div>
+                        <div class="feature-card">
+                            <div class="icon-large">🐟</div>
+                            <h4>宇宙魚！？</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>
+                        <span class="step-icon">🎮</span>
+                        その他のワールド
+                    </h3>
+                    <p>
+                        現在、「海のせかい」と「宇宙のせかい」が遊べます。
+                        他のワールドは今後のアップデートで追加予定です。
+                    </p>
+                    <div class="warning-box">
+                        <h4>📝 メモ</h4>
+                        <p>花火のせかい、自然のせかい、空のせかいは現在開発中です。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション7: ヒントとコツ -->
+        <section class="section" id="tips">
+            <div class="section-title">
+                <div class="section-number">7</div>
+                <h2>上手に遊ぶためのヒント</h2>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="tip-box" style="grid-column: span 2;">
+                    <h4>🎨 絵を描くときのコツ</h4>
+                    <ul>
+                        <li>魚は横向きに描くと自然に泳ぎます</li>
+                        <li>背景は白か透明がベスト</li>
+                        <li>はっきりした輪郭で描くと綺麗に表示されます</li>
+                        <li>カラフルな色使いがおすすめ</li>
+                    </ul>
+                </div>
+
+                <div class="tip-box">
+                    <h4>🖼️ 画像の準備</h4>
+                    <ul>
+                        <li>PNG形式（透明背景）が最適</li>
+                        <li>500x500px程度のサイズ推奨</li>
+                        <li>remove.bgなどで事前に背景削除</li>
+                    </ul>
+                </div>
+
+                <div class="tip-box">
+                    <h4>🎮 操作のコツ</h4>
+                    <ul>
+                        <li>魚が消えたら「海をきれいに」</li>
+                        <li>更新ボタンでリセット可能</li>
+                        <li>複数の魚で賑やかに</li>
+                    </ul>
+                </div>
+
+                <div class="tip-box" style="grid-column: span 2;">
+                    <h4>🚨 困ったときは</h4>
+                    <ul>
+                        <li><strong>魚が表示されない</strong> → 画像形式を確認（JPG/PNG）</li>
+                        <li><strong>背景が残る</strong> → 事前に背景削除サイトを使用</li>
+                        <li><strong>魚が消えた</strong> → 「海をきれいにする」ボタン</li>
+                        <li><strong>画面がおかしい</strong> → F5キーで更新</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- まとめ -->
+        <section class="section">
+            <div class="section-title">
+                <div class="section-number">🎉</div>
+                <h2>さあ、冒険を始めよう！</h2>
+            </div>
+            
+            <div style="text-align: center; padding: 30px;">
+                <p style="font-size: 1.2em; line-height: 1.8; margin-bottom: 30px;">
+                    Ocean Adventureで、あなただけのオリジナルな海と宇宙の世界を作りましょう！<br>
+                    自分で描いた魚や宇宙船が動き出す、魔法のような体験があなたを待っています。
+                </p>
+                
+                <a href="/" class="button-example" style="font-size: 1.3em; padding: 15px 40px; text-decoration: none; display: inline-block;">
+                    🌊 Ocean Adventureを始める
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <!-- フッター -->
+    <div class="footer">
+        <h3 style="color: #0077be; margin-bottom: 15px;">Ocean Adventure</h3>
+        <p style="color: #666;">© 2025 Ocean Adventure - わくわく探検ワールド</p>
+        <p style="color: #999; font-size: 0.9em; margin-top: 10px;">
+            子供たちの想像力を育む、魔法のような体験を提供します
+        </p>
+    </div>
+</body>
+</html>
