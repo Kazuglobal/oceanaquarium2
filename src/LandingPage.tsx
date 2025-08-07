@@ -105,7 +105,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#worlds" className="text-gray-700 hover:text-blue-600 transition-colors">ワールド</a>
               <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors">特徴</a>
-              <a href="/ocean-adventure-complete-guide.html" className="text-gray-700 hover:text-blue-600 transition-colors">使い方ガイド</a>
+              <a href="/ocean-adventure-complete-guide.html" target="_blank" rel="noopener noreferrer" className="text-gray-700 hover:text-blue-600 transition-colors">使い方ガイド</a>
               <button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition-all transform hover:scale-105">
                 今すぐ体験
               </button>
@@ -127,7 +127,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelect }) => {
             <div className="px-4 py-2 space-y-2">
               <a href="#worlds" className="block py-2 text-gray-700 hover:text-blue-600">ワールド</a>
               <a href="#features" className="block py-2 text-gray-700 hover:text-blue-600">特徴</a>
-              <a href="/ocean-adventure-complete-guide.html" className="block py-2 text-gray-700 hover:text-blue-600">使い方ガイド</a>
+              <a href="/ocean-adventure-complete-guide.html" target="_blank" rel="noopener noreferrer" className="block py-2 text-gray-700 hover:text-blue-600">使い方ガイド</a>
               <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition-all">
                 今すぐ体験
               </button>
