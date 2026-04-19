@@ -2,17 +2,25 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 // @ts-ignore - OrbitControlsをany型として扱う
 import OrbitControls from './OrbitControls';
+// @ts-ignore - FlyControlsをany型として扱う
+import FlyControls from './FlyControls';
+
+export type FlyingObjectStyle = 'bird' | 'plane';
+export type CameraMode = 'orbit' | 'fly';
 
 interface SkyWorldProps {
-  uploadedImages?: { url: string; count: number; scale: number }[];
+  uploadedImages?: { url: string; count: number; scale: number; style?: FlyingObjectStyle }[];
   weatherType?: 'sunny' | 'cloudy' | 'rainy' | 'snowy';
   timeOfDay?: 'morning' | 'day' | 'evening' | 'night';
+  cameraMode?: CameraMode;
 }
 
 interface BirdSprite {
-  sprite: THREE.Sprite;
+  object3D: THREE.Object3D; // Sprite (bird mode) or Mesh (plane mode)
+  style: FlyingObjectStyle;
   vx: number;
   vy: number;
+  vz: number;
   flapSpeed: number;
   flapPhase: number;
   originalScale: { x: number; y: number };
@@ -47,10 +55,11 @@ interface CloudMesh {
   speed: number;
 }
 
-const SkyWorld: React.FC<SkyWorldProps> = ({ 
-  uploadedImages = [], 
+const SkyWorld: React.FC<SkyWorldProps> = ({
+  uploadedImages = [],
   weatherType = 'sunny',
-  timeOfDay = 'day'
+  timeOfDay = 'day',
+  cameraMode = 'orbit'
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const birdGroupRef = useRef<THREE.Group>();
@@ -61,6 +70,8 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
+  const activeControlsRef = useRef<any>();
+  const cameraModeRef = useRef<CameraMode>(cameraMode);
 
   // 空のグラデーションカラー
   const getSkyColors = () => {
@@ -86,9 +97,9 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // 空のグラデーション背景
+    // 空のグラデーション背景 - Fly mode で遠くまで見渡せるよう大きく
     const { top, bottom } = getSkyColors();
-    const skyGeo = new THREE.BoxGeometry(100, 100, 100);
+    const skyGeo = new THREE.BoxGeometry(400, 400, 400);
     const skyMaterial = [
       new THREE.MeshBasicMaterial({ color: bottom, side: THREE.BackSide }),
       new THREE.MeshBasicMaterial({ color: bottom, side: THREE.BackSide }),
@@ -100,8 +111,8 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
     const skyBox = new THREE.Mesh(skyGeo, skyMaterial);
     scene.add(skyBox);
 
-    // カメラ
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+    // カメラ - Fly mode で遠景が切れないよう far を拡大
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 2000);
     camera.position.z = 20;
     camera.position.y = 5;
     cameraRef.current = camera;
@@ -121,13 +132,8 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
     mountRef.current?.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // コントロール
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 5;
-    controls.maxDistance = 50;
-    controls.enablePan = false;
+    // コントロールは cameraMode 用の別 useEffect で生成。ここでは生成しない。
+    // （activeControlsRef.current が animate ループで参照される）
 
     // 地面（丘のような形状）
     const groundGeometry = new THREE.PlaneGeometry(100, 100, 50, 50);
@@ -153,6 +159,78 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
     ground.position.y = -5;
     scene.add(ground);
 
+    // 街のビル群（円環状に配置して中心は空けて飛び抜けられるように）
+    const cityGroup = new THREE.Group();
+    const buildingGeometries: THREE.BufferGeometry[] = [];
+    const buildingMaterials: THREE.Material[] = [];
+
+    const makeWindowTexture = (lit: boolean) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return new THREE.CanvasTexture(canvas);
+      ctx.fillStyle = lit ? '#16213e' : '#c9d4ff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 窓グリッド
+      const cols = 4;
+      const rows = 10;
+      const pad = 4;
+      const w = (canvas.width - pad * (cols + 1)) / cols;
+      const h = (canvas.height - pad * (rows + 1)) / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const onChance = lit ? 0.7 : 0.15;
+          if (Math.random() < onChance) {
+            ctx.fillStyle = lit
+              ? (Math.random() < 0.2 ? '#ffd36b' : '#fff7c2')
+              : '#8aa3e8';
+          } else {
+            ctx.fillStyle = lit ? '#0a1024' : '#9fb0dc';
+          }
+          ctx.fillRect(pad + c * (w + pad), pad + r * (h + pad), w, h);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    };
+
+    const lit = timeOfDay === 'night' || timeOfDay === 'evening';
+    const baseColor = lit ? 0x1a1f3a : 0x7b8bbd;
+    const buildingCount = 70;
+    const innerRadius = 18; // 中心は空ける
+    const outerRadius = 85;
+    for (let i = 0; i < buildingCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
+      const bx = Math.cos(angle) * radius;
+      const bz = Math.sin(angle) * radius;
+      const bw = 1.5 + Math.random() * 2.5;
+      const bd = 1.5 + Math.random() * 2.5;
+      const bh = 5 + Math.random() * 20;
+      const geo = new THREE.BoxGeometry(bw, bh, bd);
+      buildingGeometries.push(geo);
+      const windowTex = makeWindowTexture(lit);
+      windowTex.wrapS = THREE.RepeatWrapping;
+      windowTex.wrapT = THREE.RepeatWrapping;
+      windowTex.repeat.set(1, Math.max(1, Math.round(bh / 4)));
+      const mat = new THREE.MeshStandardMaterial({
+        color: baseColor,
+        map: windowTex,
+        emissive: lit ? 0xffddaa : 0x000000,
+        emissiveIntensity: lit ? 0.35 : 0,
+        emissiveMap: lit ? windowTex : null,
+        roughness: 0.8,
+        metalness: 0.1
+      });
+      buildingMaterials.push(mat);
+      const building = new THREE.Mesh(geo, mat);
+      building.position.set(bx, bh / 2 - 5, bz);
+      cityGroup.add(building);
+    }
+    scene.add(cityGroup);
+
     // 鳥のグループ
     const birdGroup = new THREE.Group();
     scene.add(birdGroup);
@@ -166,21 +244,23 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
         const birdSprite = new THREE.Sprite(birdMaterial);
         const scale = 0.5 + Math.random() * 1;
         birdSprite.scale.set(scale, scale, 1);
-        
-        // ランダムな位置に配置
+
+        // 3D空間にランダム配置（奥行も含む）
         birdSprite.position.set(
-          (Math.random() - 0.5) * 30,
-          Math.random() * 10 + 5,
-          (Math.random() - 0.5) * 20
+          (Math.random() - 0.5) * 120,
+          Math.random() * 30 + 2,
+          (Math.random() - 0.5) * 120
         );
-        
+
         birdGroup.add(birdSprite);
-        
-        // 鳥の動きパラメータ
+
+        // 鳥の動きパラメータ（X/Y/Z 全方向）
         birdsRef.current.push({
-          sprite: birdSprite,
-          vx: (Math.random() - 0.5) * 0.1,
+          object3D: birdSprite,
+          style: 'bird',
+          vx: (Math.random() - 0.5) * 0.15,
           vy: (Math.random() - 0.5) * 0.05,
+          vz: (Math.random() - 0.5) * 0.15,
           flapSpeed: 0.1 + Math.random() * 0.1,
           flapPhase: Math.random() * Math.PI * 2,
           originalScale: { x: scale, y: scale }
@@ -223,22 +303,24 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.SpriteMaterial({ map: texture });
         const sprite = new THREE.Sprite(material);
-        
+
         const scale = 0.5 + Math.random() * 1;
         sprite.scale.set(scale, scale, 1);
-        
+
         sprite.position.set(
-          (Math.random() - 0.5) * 30,
-          Math.random() * 10 + 5,
-          (Math.random() - 0.5) * 20
+          (Math.random() - 0.5) * 120,
+          Math.random() * 30 + 2,
+          (Math.random() - 0.5) * 120
         );
-        
+
         birdGroup.add(sprite);
-        
+
         birdsRef.current.push({
-          sprite: sprite,
-          vx: (Math.random() - 0.5) * 0.1,
+          object3D: sprite,
+          style: 'bird',
+          vx: (Math.random() - 0.5) * 0.15,
           vy: (Math.random() - 0.5) * 0.05,
+          vz: (Math.random() - 0.5) * 0.15,
           flapSpeed: 0.1 + Math.random() * 0.1,
           flapPhase: Math.random() * Math.PI * 2,
           originalScale: { x: scale, y: scale }
@@ -742,30 +824,42 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
 
     // アニメーション
     let frameId: number;
+    const clock = new THREE.Clock();
     const animate = () => {
-      // 鳥のアニメーション
+      const delta = clock.getDelta();
+      // 鳥 / 飛行機のアニメーション（X/Y/Z 全方向）
       birdsRef.current.forEach(bird => {
-        if (!bird.sprite) return;
-        
-        // 鳥の位置更新
-        bird.sprite.position.x += bird.vx;
-        bird.sprite.position.y += bird.vy;
-        
-        // 羽ばたきアニメーション
-        bird.flapPhase += bird.flapSpeed;
-        const flapFactor = Math.sin(bird.flapPhase) * 0.2;
-        
-        bird.sprite.scale.y = bird.originalScale.y * (1 + flapFactor);
-        
-        // 境界チェック
-        if (bird.sprite.position.x > 50) bird.sprite.position.x = -50;
-        if (bird.sprite.position.x < -50) bird.sprite.position.x = 50;
-        if (bird.sprite.position.y > 30) bird.vy = -Math.abs(bird.vy);
-        if (bird.sprite.position.y < 2) bird.vy = Math.abs(bird.vy);
-        
-        // 向きをスピードに合わせる
-        if (bird.vx !== 0) {
-          bird.sprite.scale.x = bird.originalScale.x * (bird.vx > 0 ? -1 : 1);
+        const obj = bird.object3D;
+        if (!obj) return;
+
+        // 位置更新（3D）
+        obj.position.x += bird.vx;
+        obj.position.y += bird.vy;
+        obj.position.z += bird.vz;
+
+        // 境界チェック - X/Z は巻き戻し、Y は反射
+        if (obj.position.x > 120) obj.position.x = -120;
+        if (obj.position.x < -120) obj.position.x = 120;
+        if (obj.position.z > 120) obj.position.z = -120;
+        if (obj.position.z < -120) obj.position.z = 120;
+        if (obj.position.y > 40) bird.vy = -Math.abs(bird.vy);
+        if (obj.position.y < 1) bird.vy = Math.abs(bird.vy);
+
+        if (bird.style === 'bird') {
+          // 羽ばたき
+          bird.flapPhase += bird.flapSpeed;
+          const flapFactor = Math.sin(bird.flapPhase) * 0.2;
+          obj.scale.y = bird.originalScale.y * (1 + flapFactor);
+          // 向き（Sprite はスケール反転で左右を切替）
+          if (bird.vx !== 0) {
+            obj.scale.x = bird.originalScale.x * (bird.vx > 0 ? -1 : 1);
+          }
+        } else {
+          // Plane スタイル - 進行方向に向ける（Yaw + Pitch）
+          const yaw = Math.atan2(bird.vx, bird.vz);
+          const horizSpeed = Math.sqrt(bird.vx * bird.vx + bird.vz * bird.vz) || 0.0001;
+          const pitch = Math.atan2(bird.vy, horizSpeed);
+          obj.rotation.set(pitch, yaw, 0);
         }
       });
       
@@ -940,26 +1034,36 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
         });
       }
       
-      controls.update();
+      // FlyControls は delta を必要とする、OrbitControls は無視する
+      activeControlsRef.current?.update?.(delta);
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(animate);
     };
-    
+
     animate();
 
     // クリーンアップ
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(frameId);
-      
+
       // レンダラーをDOMから削除
       if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
       }
-      
+
+      // 街のジオメトリ/マテリアルを解放
+      buildingGeometries.forEach(g => g.dispose());
+      buildingMaterials.forEach(m => {
+        const anyMat = m as any;
+        if (anyMat.map) anyMat.map.dispose?.();
+        if (anyMat.emissiveMap && anyMat.emissiveMap !== anyMat.map) anyMat.emissiveMap.dispose?.();
+        m.dispose();
+      });
+
       // WebGLコンテキストを解放
       renderer.dispose();
-      
+
       // メモリの解放
       birdsRef.current = [];
       cloudsRef.current = [];
@@ -967,35 +1071,88 @@ const SkyWorld: React.FC<SkyWorldProps> = ({
     };
   }, [weatherType, timeOfDay]);
 
+  // カメラ操作モード（OrbitControls / FlyControls）の切替
+  useEffect(() => {
+    cameraModeRef.current = cameraMode;
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!camera || !renderer) return;
+
+    let controls: any;
+    if (cameraMode === 'fly') {
+      controls = new FlyControls(camera, renderer.domElement);
+      controls.movementSpeed = 15;
+      controls.rollSpeed = Math.PI / 6;
+      controls.autoForward = false;
+      controls.dragToLook = true;
+    } else {
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 5;
+      controls.maxDistance = 150;
+      controls.enablePan = true;
+    }
+    activeControlsRef.current = controls;
+
+    return () => {
+      if (activeControlsRef.current === controls) {
+        activeControlsRef.current = undefined;
+      }
+      controls?.dispose?.();
+    };
+    // weatherType/timeOfDay を含めているのは、それらが変わると renderer/camera が作り直されるため、
+    // 新しいインスタンスに合わせて controls を作り直す必要があるから。
+  }, [cameraMode, weatherType, timeOfDay]);
+
   // 画像アップロード効果
   useEffect(() => {
     if (!birdGroupRef.current) return;
-    
-    // アップロードされた画像を鳥として追加
-    uploadedImages.forEach(({ url, count, scale }) => {
+
+    // アップロードされた画像を空を飛ぶオブジェクトとして追加
+    uploadedImages.forEach(({ url, count, scale, style = 'bird' }) => {
       for (let i = 0; i < count; i++) {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           const texture = new THREE.Texture(img);
           texture.needsUpdate = true;
-          
-          const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-          const sprite = new THREE.Sprite(material);
-          
-          sprite.scale.set(scale, scale, 1);
-          sprite.position.set(
-            (Math.random() - 0.5) * 30,
-            Math.random() * 15 + 5,
-            (Math.random() - 0.5) * 20
+
+          let object3D: THREE.Object3D;
+          if (style === 'plane') {
+            // 飛行機モード - 進行方向に向きを合わせる Plane メッシュ
+            const aspect = img.width > 0 && img.height > 0 ? img.width / img.height : 2;
+            const planeGeom = new THREE.PlaneGeometry(scale * aspect, scale);
+            const planeMat = new THREE.MeshBasicMaterial({
+              map: texture,
+              transparent: true,
+              side: THREE.DoubleSide,
+              depthWrite: false
+            });
+            object3D = new THREE.Mesh(planeGeom, planeMat);
+          } else {
+            // 鳥モード - 常にカメラを向く Sprite
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(scale, scale, 1);
+            object3D = sprite;
+          }
+
+          // 3D 空間にランダム配置（奥行も広く）
+          object3D.position.set(
+            (Math.random() - 0.5) * 100,
+            Math.random() * 25 + 3,
+            (Math.random() - 0.5) * 100
           );
-          
-          birdGroupRef.current?.add(sprite);
-          
+
+          birdGroupRef.current?.add(object3D);
+
           birdsRef.current.push({
-            sprite,
-            vx: (Math.random() - 0.5) * 0.2,
-            vy: (Math.random() - 0.5) * 0.05,
+            object3D,
+            style,
+            vx: (Math.random() - 0.5) * 0.25,
+            vy: (Math.random() - 0.5) * 0.06,
+            vz: (Math.random() - 0.5) * 0.25,
             flapSpeed: 0.1 + Math.random() * 0.1,
             flapPhase: Math.random() * Math.PI * 2,
             originalScale: { x: scale, y: scale }
