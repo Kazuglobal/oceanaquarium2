@@ -1,28 +1,32 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Plus, Minus, Cloud, Sun, Umbrella, Snowflake, Clock } from 'lucide-react';
+import { Upload, Plus, Minus, Cloud, Sun, Umbrella, Snowflake, Clock, Bird, Plane, Compass, Orbit } from 'lucide-react';
 import SkyWorld from './scenes/SkyWorld';
+
+type SkyImage = { url: string; count: number; scale: number; style: 'bird' | 'plane' };
 
 const AppSky: React.FC = () => {
   // アップロードされた画像の管理
-  const [images, setImages] = useState<{ url: string; count: number; scale: number }[]>([]);
+  const [images, setImages] = useState<SkyImage[]>([]);
   // パネルの表示状態
   const [panelOpen, setPanelOpen] = useState(false);
   // 天気の状態
   const [weather, setWeather] = useState<'sunny' | 'cloudy' | 'rainy' | 'snowy'>('sunny');
   // 時間帯
   const [timeOfDay, setTimeOfDay] = useState<'morning' | 'day' | 'evening' | 'night'>('day');
-  
+  // カメラ操作モード
+  const [cameraMode, setCameraMode] = useState<'orbit' | 'fly'>('orbit');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 画像アップロード処理
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const url = ev.target?.result as string;
-      setImages((prev) => [...prev, { url, count: 1, scale: 1 }]);
+      setImages((prev) => [...prev, { url, count: 1, scale: 1, style: 'bird' }]);
     };
     reader.readAsDataURL(file);
   };
@@ -30,11 +34,33 @@ const AppSky: React.FC = () => {
   return (
     <>
       {/* 空の世界3Dシーン */}
-      <SkyWorld 
-        uploadedImages={images} 
+      <SkyWorld
+        uploadedImages={images}
         weatherType={weather}
         timeOfDay={timeOfDay}
+        cameraMode={cameraMode}
       />
+
+      {/* Fly モードの操作ヒント */}
+      {cameraMode === 'fly' && (
+        <div style={{
+          position: 'fixed',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.55)',
+          color: 'white',
+          padding: '8px 14px',
+          borderRadius: 8,
+          fontSize: 13,
+          zIndex: 20,
+          pointerEvents: 'none',
+          textAlign: 'center',
+          maxWidth: '90vw'
+        }}>
+          ✈ Fly モード：W/A/S/D または 矢印キーで移動、R/F で上下、マウスドラッグで視点
+        </div>
+      )}
       
       {/* 画像アップロード用の非表示入力 */}
       <input
@@ -143,6 +169,25 @@ const AppSky: React.FC = () => {
             </div>
           </div>
           
+          {/* カメラ操作モード */}
+          <div style={{ marginBottom: 15 }}>
+            <div style={{ color: 'white', marginBottom: 5, fontSize: 14 }}>カメラそうさ:</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <TimeButton
+                icon={<Orbit size={16} />}
+                label="まわる"
+                selected={cameraMode === 'orbit'}
+                onClick={() => setCameraMode('orbit')}
+              />
+              <TimeButton
+                icon={<Compass size={16} />}
+                label="とぶ"
+                selected={cameraMode === 'fly'}
+                onClick={() => setCameraMode('fly')}
+              />
+            </div>
+          </div>
+
           {/* 時間帯設定 */}
           <div style={{ marginBottom: 15 }}>
             <div style={{ color: 'white', marginBottom: 5, fontSize: 14 }}>じかんたいをえらぶ:</div>
@@ -261,6 +306,30 @@ const AppSky: React.FC = () => {
                       />
                     </div>
                     
+                    {/* スタイル切替（鳥 / 飛行機） */}
+                    <button
+                      onClick={() => setImages(prev =>
+                        prev.map((it, i) =>
+                          i === idx ? { ...it, style: it.style === 'bird' ? 'plane' : 'bird' } : it
+                        )
+                      )}
+                      title={item.style === 'bird' ? '鳥モード（切替：飛行機）' : '飛行機モード（切替：鳥）'}
+                      style={{
+                        background: 'rgba(0,0,0,0.15)',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '2px 6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        cursor: 'pointer',
+                        color: 'white',
+                        fontSize: 11
+                      }}
+                    >
+                      {item.style === 'bird' ? <Bird size={14} /> : <Plane size={14} />}
+                    </button>
+
                     {/* 削除ボタン */}
                     <button
                       onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))}
@@ -297,9 +366,9 @@ const AppSky: React.FC = () => {
             color: 'white' 
           }}>
             <p style={{ margin: '0 0 5px 0' }}>💡 操作方法:</p>
-            <p style={{ margin: 0 }}>• ドラッグ: カメラを回す</p>
-            <p style={{ margin: 0 }}>• スクロール: ズームイン/アウト</p>
-            <p style={{ margin: 0 }}>• 画像アップロード: オリジナルの鳥や生き物を追加</p>
+            <p style={{ margin: 0 }}>• まわるモード：ドラッグで視点、スクロールでズーム</p>
+            <p style={{ margin: 0 }}>• とぶモード：W/A/S/D 移動、マウスで視点、R/F で上下</p>
+            <p style={{ margin: 0 }}>• 画像アップロード：鳥/飛行機アイコンで飛び方を切替</p>
           </div>
         </div>
       )}
